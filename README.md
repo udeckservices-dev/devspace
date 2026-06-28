@@ -1,3 +1,5 @@
+![DevSpace Banner](static/img/banner.jpg)
+
 # DevSpace 🚀
 
 **Self-hosted deployment panel** — Push your code with git, DevSpace handles the rest.
