@@ -147,5 +147,15 @@ def create_app(config_name='default'):
 
 app = create_app(os.environ.get('FLASK_ENV', 'production'))
 
+# Ensure all DB tables exist (including newly added models)
+with app.app_context():
+    from models import db
+    db.create_all()
+    try:
+        from run import _migrate_db
+        _migrate_db()
+    except Exception:
+        pass
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=False)

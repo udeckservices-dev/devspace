@@ -83,6 +83,10 @@
            href="{{ url_for('admin.ai_monitor') }}">
             <i class="bi bi-robot"></i> AI Monitor
         </a>
+        <a class="sidebar-link {% if request.endpoint == 'admin.code_scanner' %}active{% endif %}"
+           href="{{ url_for('admin.code_scanner') }}">
+            <i class="bi bi-shield-check"></i> Code Scanner
+        </a>
         <a class="sidebar-link {% if request.endpoint == 'main.zip_deploy_center' %}active{% endif %}"
            href="{{ url_for('main.zip_deploy_center') }}">
             <i class="bi bi-file-zip-fill"></i> ZIP Deploy

@@ -31,3 +31,6 @@ deploy_vps.py
 # ── Scratch / temp ──
 scratch/
 tmp/
+
+# corruption backup
+routes/admin2.py

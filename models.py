@@ -350,3 +350,57 @@ class UserSession(db.Model):
     __table_args__ = (
         db.Index('idx_session_user', 'user_id', 'last_active'),
     )
+
+
+class CodeScan(db.Model):
+    __tablename__ = 'code_scans'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    project_id  = db.Column(db.Integer, db.ForeignKey('projects.id', ondelete='CASCADE'), nullable=False)
+    user_id     = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    status      = db.Column(db.String(20), default='pending')  # pending, running, completed, failed
+    language    = db.Column(db.String(20))
+    total_issues = db.Column(db.Integer, default=0)
+    high_count   = db.Column(db.Integer, default=0)
+    medium_count = db.Column(db.Integer, default=0)
+    low_count    = db.Column(db.Integer, default=0)
+    score       = db.Column(db.Float, nullable=True)
+    summary_json = db.Column(db.Text, nullable=True)
+    started_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    finished_at = db.Column(db.DateTime, nullable=True)
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+    project = db.relationship('Project', backref='code_scans', lazy=True)
+    user    = db.relationship('User', backref='code_scans', lazy=True)
+
+    __table_args__ = (
+        db.Index('idx_scans_project', 'project_id'),
+        db.Index('idx_scans_status', 'status'),
+    )
+
+
+class CodeVulnerability(db.Model):
+    __tablename__ = 'code_vulnerabilities'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    scan_id     = db.Column(db.Integer, db.ForeignKey('code_scans.id', ondelete='CASCADE'), nullable=False)
+    vuln_type   = db.Column(db.String(50))   # security, quality, dependency
+    scanner     = db.Column(db.String(30))   # bandit, pylint, npm_audit, basic
+    severity    = db.Column(db.String(10))   # HIGH, MEDIUM, LOW
+    confidence  = db.Column(db.String(10))
+    title       = db.Column(db.String(200))
+    message     = db.Column(db.Text)
+    file_path   = db.Column(db.String(500))
+    line_number = db.Column(db.Integer, default=0)
+    code_snippet = db.Column(db.Text, nullable=True)
+    cve         = db.Column(db.String(100), nullable=True)
+    fix         = db.Column(db.Text, nullable=True)
+    is_false_positive = db.Column(db.Boolean, default=False)
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+    scan = db.relationship('CodeScan', backref='vulnerabilities', lazy=True)
+
+    __table_args__ = (
+        db.Index('idx_vuln_scan', 'scan_id'),
+        db.Index('idx_vuln_severity', 'severity'),
+    )

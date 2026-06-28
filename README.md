@@ -66,6 +66,16 @@ Deploy **Python**, **Node.js**, and **PHP** projects to your own VPS with zero C
 - **Password Reset** — Token-based reset links
 - **Test Email** — Send test email from settings
 
+### 🔍 Code Scanner
+- **Static Analysis** — Scan deployed Python projects for vulnerabilities and code quality
+- **Bandit Integration** — Python security linting detects hardcoded secrets, SQL injections, and more
+- **Pylint Integration** — Code quality scoring with PEP 8 compliance checks
+- **NPM Audit** — Dependency vulnerability scanning for Node.js projects
+- **Pattern-based Fallback** — Regex-based secret detection (passwords, API keys, tokens)
+- **Severity Grading** — High/Medium/Low classification with color-coded badges
+- **Project Selector** — Choose any deployed project to scan
+- **Scan History** — Full audit trail of all past scans with results
+
 ### 🧰 Additional Tools
 - **Nginx Reverse Proxy** — One-click SSL certificate (Let's Encrypt) + domain setup
 - **File Manager** — Browse, upload, edit, delete files on deployed projects
