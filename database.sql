@@ -51,14 +51,14 @@ CREATE TABLE IF NOT EXISTS deployments (
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Insert default admin user (⚠️ CHANGE THIS PASSWORD BEFORE DEPLOYING ⚠️)
--- Password is hashed with bcrypt for password: change-this-password
+-- ⚠️ GENERATE YOUR OWN HASH BEFORE USING THIS SQL ⚠️
+-- python -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('your-admin-password'))"
 INSERT INTO users (name, email, password, role, plan) VALUES 
-('Admin', 'admin@example.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyY3U8Kx3L4m', 'admin', 'pro');
+('Admin', 'admin@example.com', 'pbkdf2:sha256:600000$CHANGE_ME$0000000000000000000000000000000000000000000000000000000000000000', 'admin', 'pro');
 
 -- Sample user for testing
 INSERT INTO users (name, email, password, role, plan) VALUES 
-('Test User', 'user@example.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyY3U8Kx3L4m', 'user', 'free');
+('Test User', 'user@example.com', 'pbkdf2:sha256:600000$CHANGE_ME$0000000000000000000000000000000000000000000000000000000000000000', 'user', 'free');
 
 -- Plan limits configuration
 -- free: 1 project
