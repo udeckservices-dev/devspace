@@ -34,7 +34,7 @@ python run.py
 
 ### Step 5: Access
 - Open browser: http://127.0.0.1:5000
-- Login: `uditroy@udeckservices.com` / `admin123`
+- Login: `admin@example.com` / `change-this-password`
 
 ---
 

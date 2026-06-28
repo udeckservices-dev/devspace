@@ -39,7 +39,7 @@ sudo mysql
 MySQL me ye commands chalayein:
 ```sql
 CREATE DATABASE devspace CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'devspace'@'localhost' IDENTIFIED BY 'StrongPassword123!';
+CREATE USER 'devspace'@'localhost' IDENTIFIED BY 'YOUR_STRONG_DB_PASSWORD';
 GRANT ALL PRIVILEGES ON devspace.* TO 'devspace'@'localhost';
 FLUSH PRIVILEGES;
 EXIT;
@@ -82,7 +82,7 @@ DB_HOST=localhost
 DB_PORT=3306
 DB_NAME=devspace
 DB_USER=devspace
-DB_PASSWORD=StrongPassword123!
+DB_PASSWORD=YOUR_STRONG_DB_PASSWORD
 ```
 
 ---
@@ -132,8 +132,8 @@ https://yourdomain.com
 ```
 
 **Login Credentials:**
-- Email: `uditroy@udeckservices.com`
-- Password: `admin123`
+- Email: `admin@example.com`
+- Password: `change-this-password`
 
 ---
 

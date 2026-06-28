@@ -64,7 +64,7 @@ sudo nginx -t && sudo systemctl reload nginx
     else:
         return {'success': False, 'config': config_content, 'message': f"Failed to setup Nginx: {res['stderr']}"}
 
-def install_letsencrypt_ssl(server, domain_name, email="uditroy@udeckservices.com") -> dict:
+def install_letsencrypt_ssl(server, domain_name, email="admin@example.com") -> dict:
     """Orchestrates SSL via Let's Encrypt."""
     cmd = f"sudo certbot --nginx -d {domain_name} --non-interactive --agree-tos -m {email} --redirect"
     res = _execute_nginx_command(server, cmd)

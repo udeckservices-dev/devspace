@@ -657,7 +657,7 @@ def python_monitor_test_alert():
     try:
         notify_app_down(
             app=current_app._get_current_object(),
-            server_name='TEST-SERVER (167.86.72.196)',
+            server_name='TEST-SERVER (YOUR_SERVER_IP)',
             app_name='sample-app',
             app_type='service'
         )
@@ -1019,7 +1019,7 @@ def python_monitor_test_alert():
     try:
         notify_app_down(
             app=current_app._get_current_object(),
-            server_name='TEST-SERVER (167.86.72.196)',
+            server_name='TEST-SERVER (YOUR_SERVER_IP)',
             app_name='sample-app',
             app_type='service'
         )

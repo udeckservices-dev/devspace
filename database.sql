@@ -51,10 +51,10 @@ CREATE TABLE IF NOT EXISTS deployments (
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Insert default admin user (password: admin123)
--- Password is hashed with bcrypt: $2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyY3U8Kx3L4m
+-- Insert default admin user (⚠️ CHANGE THIS PASSWORD BEFORE DEPLOYING ⚠️)
+-- Password is hashed with bcrypt for password: change-this-password
 INSERT INTO users (name, email, password, role, plan) VALUES 
-('Admin', 'uditroy@udeckservices.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyY3U8Kx3L4m', 'admin', 'pro');
+('Admin', 'admin@example.com', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyY3U8Kx3L4m', 'admin', 'pro');
 
 -- Sample user for testing
 INSERT INTO users (name, email, password, role, plan) VALUES 
