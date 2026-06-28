@@ -80,13 +80,11 @@ Deploy **Python**, **Node.js**, and **PHP** projects to your own VPS with zero C
 
 ## Screenshots
 
-> Screenshots go here. Add images to `static/img/screenshots/` and reference them as:
->
-> `![Dashboard](static/img/screenshots/dashboard.png)`
->
-> `![Code Scanner](static/img/screenshots/code-scanner.png)`
->
-> `![AI Monitor](static/img/screenshots/ai-monitor.png)`
+![Dashboard](static/img/screenshots/dashboard.jpg)
+![Server List](static/img/screenshots/server_list.jpg)
+![Server Terminal](static/img/screenshots/server_terminal.jpg)
+![Python Monitoring](static/img/screenshots/python_monitoring.jpg)
+![Add Server](static/img/screenshots/server_adding.jpg)
 
 ---
 
