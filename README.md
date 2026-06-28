@@ -76,6 +76,20 @@ Deploy **Python**, **Node.js**, and **PHP** projects to your own VPS with zero C
 - **Project Selector** — Choose any deployed project to scan
 - **Scan History** — Full audit trail of all past scans with results
 
+---
+
+## Screenshots
+
+> Screenshots go here. Add images to `static/img/screenshots/` and reference them as:
+>
+> `![Dashboard](static/img/screenshots/dashboard.png)`
+>
+> `![Code Scanner](static/img/screenshots/code-scanner.png)`
+>
+> `![AI Monitor](static/img/screenshots/ai-monitor.png)`
+
+---
+
 ### 🧰 Additional Tools
 - **Nginx Reverse Proxy** — One-click SSL certificate (Let's Encrypt) + domain setup
 - **File Manager** — Browse, upload, edit, delete files on deployed projects
