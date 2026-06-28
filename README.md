@@ -2,6 +2,14 @@
 
 # DevSpace 🚀
 
+<p align="center">
+  <img src="https://img.shields.io/github/stars/udeckservices-dev/devspace?style=for-the-badge&logo=github&label=Stars&color=2563eb">
+  <img src="https://img.shields.io/github/forks/udeckservices-dev/devspace?style=for-the-badge&logo=github&label=Forks&color=3b82f6">
+  <img src="https://img.shields.io/badge/License-MIT-22d3ee?style=for-the-badge&logo=open-source-initiative">
+  <img src="https://img.shields.io/badge/Python-3.9+-22d3ee?style=for-the-badge&logo=python&logoColor=white">
+  <img src="https://img.shields.io/badge/Flask-2.3+-2563eb?style=for-the-badge&logo=flask&logoColor=white">
+</p>
+
 **Self-hosted deployment panel** — Push your code with git, DevSpace handles the rest.
 
 Deploy **Python**, **Node.js**, and **PHP** projects to your own VPS with zero CI/CD complexity. Built-in real-time application monitoring, AI-powered anomaly detection, live SSH terminal access, and multi-level security.
