@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Logs — {{ project.name }}{% endblock %}
+{% block topbar_title %}Deployment Logs{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <div class="page-title"><i class="bi bi-terminal"></i> Logs
+            <span style="color:var(--tx-2); font-weight:400; font-size:16px;">— {{ project.name }}</span>
+        </div>
+        <nav aria-label="breadcrumb" class="mt-1">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('main.projects') }}">Projects</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('main.project_detail', project_id=project.id) }}">{{ project.name }}</a></li>
+                <li class="breadcrumb-item active">Logs</li>
+            </ol>
+        </nav>
+    </div>
+    <div class="d-flex gap-2">
+        <form method="POST" action="{{ url_for('main.deploy_project', project_id=project.id) }}"
+              style="display:inline;"
+              onsubmit="this.querySelector('button').innerHTML='<span class=\'spinner\'></span>&nbsp;Deploying…'; this.querySelector('button').disabled=true;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-deploy">
+                <i class="bi bi-rocket-takeoff"></i> Deploy Now
+            </button>
+        </form>
+        <a href="{{ url_for('main.project_detail', project_id=project.id) }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+<!-- Project info strip -->
+<div class="card" style="margin-bottom:24px;">
+    <div class="card-body" style="padding:14px 20px;">
+        <div class="row g-3">
+            <div class="col-6 col-md-3">
+                <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--tx-3); font-weight:600; margin-bottom:5px;">Project</div>
+                <div style="font-weight:600; font-size:13.5px;">{{ project.name }}</div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--tx-3); font-weight:600; margin-bottom:5px;">Language</div>
+                <span class="badge bg-{{ 'success' if project.language == 'python' else 'primary' if project.language in ['node','php'] else 'warning' }}">{{ project.language.upper() }}</span>
+            </div>
+            <div class="col-6 col-md-3">
+                <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--tx-3); font-weight:600; margin-bottom:5px;">Branch</div>
+                <code>{{ project.branch }}</code>
+            </div>
+            <div class="col-6 col-md-3">
+                <div style="font-size:10.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--tx-3); font-weight:600; margin-bottom:5px;">Last Deploy</div>
+                {% if project.last_deployed %}
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span class="status-dot status-success"></span>
+                        <span style="font-size:13px;">{{ project.last_deployed.strftime('%b %d, %H:%M') }}</span>
+                    </div>
+                {% else %}
+                    <span style="color:var(--tx-3); font-size:13px;">Never</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Deployment history -->
+{% if deployments %}
+<div class="accordion" id="deployAccordion">
+    {% for d in deployments %}
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button {{ 'collapsed' if not loop.first }}"
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#dep{{ d.id }}">
+                <div class="d-flex w-100 justify-content-between align-items-center pe-3 gap-2" style="flex-wrap:wrap; row-gap:6px;">
+                    <div class="d-flex align-items-center gap-3 flex-wrap" style="gap:10px !important;">
+                        <span class="status-dot status-{{ d.status }}"></span>
+                        <span style="font-weight:600; font-size:13.5px;">Deploy #{{ d.id }}</span>
+                        <span class="badge bg-{{ 'success' if d.status == 'success' else 'danger' if d.status == 'failed' else 'warning' if d.status == 'running' else 'secondary' }}">
+                            {{ d.status.upper() }}
+                        </span>
+                        {% if d.commit_message %}
+                        <span class="tag" style="font-size:11.5px;">
+                            <i class="bi bi-git-commit"></i>
+                            {{ d.commit_message[:50] }}{% if d.commit_message|length > 50 %}…{% endif %}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <span style="font-size:12px; color:var(--tx-3); white-space:nowrap; flex-shrink:0;">
+                        {{ d.created_at.strftime('%b %d  %H:%M:%S') }}
+                        {% if d.finished_at %}
+                        <span style="color:var(--green); margin-left:6px;">{{ ((d.finished_at - d.created_at).total_seconds()|int) }}s</span>
+                        {% endif %}
+                    </span>
+                </div>
+            </button>
+        </h2>
+        <div id="dep{{ d.id }}"
+             class="accordion-collapse collapse {{ 'show' if loop.first }}"
+             data-bs-parent="#deployAccordion">
+            <div class="accordion-body">
+                <div class="terminal-header">
+                    <span class="dot dot-red"></span>
+                    <span class="dot dot-yellow"></span>
+                    <span class="dot dot-green"></span>
+                    <span style="margin-left:8px;">deploy.log — #{{ d.id }}</span>
+                </div>
+                <pre class="terminal-output" style="border-radius:0 0 var(--r-xl) var(--r-xl); border-top:none; max-height:400px;">{{ d.logs or 'No log output.' }}</pre>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div class="empty-icon"><i class="bi bi-terminal"></i></div>
+        <h4>No deployments yet</h4>
+        <p>Deploy this project to see logs here.</p>
+        <form method="POST" action="{{ url_for('main.deploy_project', project_id=project.id) }}"
+              style="display:inline;">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-deploy">
+                <i class="bi bi-rocket-takeoff"></i> Deploy Now
+            </button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

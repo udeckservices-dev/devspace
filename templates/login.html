@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Sign In â€” DevSpace</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=2">
+</head>
+<body>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div style="position:fixed; top:16px; right:16px; z-index:9999; min-width:300px; max-width:400px;">
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {% if category == 'danger' %}<i class="bi bi-x-circle-fill"></i>
+            {% else %}<i class="bi bi-check-circle-fill"></i>{% endif %}
+            <span>{{ message }}</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+{% endwith %}
+
+<div class="auth-shell">
+
+    <!-- â”€â”€ Left promo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <div class="auth-promo">
+        <div class="auth-promo-content">
+            <div class="auth-promo-logo">
+                <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="DevSpace" width="42" height="42">
+            </div>
+            <h2>Deploy with git push</h2>
+            <p>Self-hosted deployments for Python, Node.js, and PHP â€” no CI/CD complexity, just push and deploy.</p>
+
+            <div class="auth-feature">
+                <i class="bi bi-git"></i>
+                <span>Push to deploy â€” hooks fire automatically</span>
+            </div>
+            <div class="auth-feature">
+                <i class="bi bi-terminal"></i>
+                <span>Real-time logs on every deployment</span>
+            </div>
+            <div class="auth-feature">
+                <i class="bi bi-folder2-open"></i>
+                <span>Browse deployed files in the panel</span>
+            </div>
+            <div class="auth-feature">
+                <i class="bi bi-server"></i>
+                <span>Works on any Linux VPS</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- â”€â”€ Right form â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+    <div class="auth-side">
+        <div class="auth-card fade-in">
+
+            <div class="auth-card-header">
+                <div class="logo">
+                    <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="DevSpace" width="48" height="48">
+                </div>
+                <h1>Welcome back</h1>
+                <p>Sign in to your DevSpace account</p>
+            </div>
+
+            <!-- Tabs -->
+            <ul class="nav nav-tabs mb-4" style="border-bottom-color:var(--bd);">
+                <li class="nav-item">
+                    <button class="nav-link active" id="pwdTab" style="color:var(--tx-2);font-size:13px;"
+                            onclick="switchTab('password')">Password</button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link" id="otpTab" style="color:var(--tx-2);font-size:13px;"
+                            onclick="switchTab('otp')">Email OTP</button>
+                </li>
+            </ul>
+
+            <!-- Password login -->
+            <div id="passwordLogin">
+                <form method="POST" action="{{ url_for('auth.login') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="login_type" value="password">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email address</label>
+                        <input type="email" class="form-control" id="email" name="email"
+                               required autofocus placeholder="you@example.com">
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Password</label>
+                        <div style="position:relative;">
+                            <input type="password" class="form-control" id="password" name="password"
+                                   required placeholder="Enter your password" style="padding-right:42px;">
+                            <button type="button" onclick="togglePwd()"
+                                    style="position:absolute; right:12px; top:50%; transform:translateY(-50%); background:none; border:none; color:var(--tx-3); cursor:pointer; padding:0; font-size:15px;">
+                                <i class="bi bi-eye" id="pwdEye"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                        <a href="{{ url_for('auth.forgot_password') }}" style="font-size:12px;color:#60a5fa;text-decoration:none;">
+                            <i class="bi bi-question-circle"></i> Forgot password?
+                        </a>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100" style="padding:11px;font-weight:600;">
+                        <i class="bi bi-box-arrow-in-right"></i> Sign In
+                    </button>
+                </form>
+            </div>
+
+            <!-- OTP login -->
+            <div id="otpLogin" style="display:none;">
+                <form method="POST" action="{{ url_for('auth.send_otp') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label for="otp_email" class="form-label">Email address</label>
+                        <input type="email" class="form-control" id="otp_email" name="email"
+                               required placeholder="you@example.com">
+                    </div>
+                    <button type="submit" class="btn btn-info w-100" style="padding:11px;font-weight:600;">
+                        <i class="bi bi-envelope"></i> Send OTP
+                    </button>
+                </form>
+                <div id="otpVerifySection" style="display:none;margin-top:16px;">
+                    <form method="POST" action="{{ url_for('auth.verify_otp') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="email" id="otp_verify_email">
+                        <div class="mb-3">
+                            <label class="form-label">Enter 6-digit OTP sent to your email</label>
+                            <input type="text" name="otp" class="form-control" placeholder="000000"
+                                   maxlength="6" pattern="[0-9]{6}" inputmode="numeric"
+                                   style="text-align:center;font-size:24px;letter-spacing:8px;font-family:monospace;">
+                        </div>
+                        <button type="submit" class="btn btn-success w-100" style="padding:11px;font-weight:600;">
+                            <i class="bi bi-shield-check"></i> Verify & Login
+                        </button>
+                    </form>
+                </div>
+                <div id="otpMessage" style="margin-top:12px;font-size:13px;color:#64748b;text-align:center;"></div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function togglePwd() {
+    const input = document.getElementById('password');
+    const eye   = document.getElementById('pwdEye');
+    if (input.type === 'password') {
+        input.type = 'text';
+        eye.className = 'bi bi-eye-slash';
+    } else {
+        input.type = 'password';
+        eye.className = 'bi bi-eye';
+    }
+}
+
+function switchTab(tab) {
+    document.getElementById('pwdTab').classList.toggle('active', tab === 'password');
+    document.getElementById('otpTab').classList.toggle('active', tab === 'otp');
+    document.getElementById('passwordLogin').style.display = tab === 'password' ? 'block' : 'none';
+    document.getElementById('otpLogin').style.display = tab === 'otp' ? 'block' : 'none';
+}
+
+// OTP form handler
+document.querySelector('#otpLogin form')?.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const form = this;
+    const btn = form.querySelector('button');
+    const msg = document.getElementById('otpMessage');
+    const verifySection = document.getElementById('otpVerifySection');
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Sending...';
+    msg.textContent = '';
+
+    try {
+        const resp = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams(new FormData(form))
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            document.getElementById('otp_verify_email').value = form.querySelector('[name=email]').value;
+            verifySection.style.display = 'block';
+            msg.innerHTML = '<span style="color:#22c55e;"><i class="bi bi-check-circle"></i> OTP sent! Check your email.</span>';
+        } else {
+            msg.innerHTML = '<span style="color:#f87171;"><i class="bi bi-x-circle"></i> ' + (data.error || 'Failed') + '</span>';
+        }
+    } catch(e) {
+        msg.innerHTML = '<span style="color:#f87171;">Error: ' + e.message + '</span>';
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-envelope"></i> Send OTP';
+});
+</script>
+</body>
+</html>

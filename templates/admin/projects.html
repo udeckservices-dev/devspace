@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}All Projects â€” DevSpace{% endblock %}
+{% block topbar_title %}All Projects{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <div class="page-title"><i class="bi bi-folder2-open"></i> All Projects</div>
+        <div class="page-subtitle">{{ projects|length }} project{{ 's' if projects|length != 1 }}</div>
+    </div>
+    <a href="{{ url_for('main.add_project') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> New Project
+    </a>
+</div>
+
+<div class="card">
+    {% if projects %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Project</th>
+                    <th>Owner</th>
+                    <th>Lang</th>
+                    <th>Branch</th>
+                    <th>Deploy Path</th>
+                    <th>Last Deploy</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for project in projects %}
+                <tr>
+                    <td style="color:var(--tx-3);">{{ project.id }}</td>
+                    <td style="font-weight:600;">
+                        <a href="{{ url_for('main.project_detail', project_id=project.id) }}"
+                           style="color:var(--tx); text-decoration:none;">{{ project.name }}</a>
+                    </td>
+                    <td>
+                        <a href="{{ url_for('admin.edit_user', user_id=project.user.id) }}"
+                           style="color:var(--blue); text-decoration:none; font-size:13px;">
+                            {{ project.user.name }}
+                        </a>
+                    </td>
+                    <td>
+                        <span class="badge bg-{{ 'success' if project.language == 'python' else 'primary' if project.language in ['node','php'] else 'warning' }}">
+                            {{ project.language.upper() }}
+                        </span>
+                    </td>
+                    <td><code style="font-size:12px;">{{ project.branch }}</code></td>
+                    <td>
+                        <code style="font-size:11.5px; color:var(--tx-3);">{{ project.deploy_path }}</code>
+                    </td>
+                    <td style="font-size:12.5px;">
+                        {% if project.last_deployed %}
+                            <span style="color:var(--tx-2);">{{ project.last_deployed.strftime('%b %d, %H:%M') }}</span>
+                        {% else %}
+                            <span style="color:var(--tx-3);">Never</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex gap-1" style="flex-wrap:nowrap;">
+                            <form method="POST" action="{{ url_for('main.deploy_project', project_id=project.id) }}"
+                                  style="display:inline;"
+                                  onsubmit="return confirm('Deploy {{ project.name }}?')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-deploy" title="Deploy now">
+                                    <i class="bi bi-rocket-takeoff"></i>
+                                </button>
+                            </form>
+                            <a href="{{ url_for('main.run_app', project_id=project.id) }}"
+                               class="btn btn-sm btn-dark" title="Run App / Install packages" style="color:var(--green);">
+                                <i class="bi bi-play-circle"></i>
+                            </a>
+                            <a href="{{ url_for('main.project_files', project_id=project.id) }}"
+                               class="btn btn-sm btn-dark" title="Browse files">
+                                <i class="bi bi-folder2-open"></i>
+                            </a>
+                            <a href="{{ url_for('main.deployment_logs', project_id=project.id) }}"
+                               class="btn btn-sm btn-dark" title="Logs">
+                                <i class="bi bi-terminal"></i>
+                            </a>
+                            <a href="{{ url_for('main.edit_project', project_id=project.id) }}"
+                               class="btn btn-sm btn-secondary" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </a>
+                            <form method="POST" action="{{ url_for('main.delete_project', project_id=project.id) }}"
+                                  style="display:inline;"
+                                  onsubmit="return confirm('Delete {{ project.name }}? This cannot be undone.')">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon"><i class="bi bi-folder-x"></i></div>
+        <h4>No Projects Yet</h4>
+        <p>No projects have been created yet.</p>
+        <a href="{{ url_for('main.add_project') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Create First Project
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

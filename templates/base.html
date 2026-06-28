@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}DevSpace{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v=css_version) }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+{% if current_user.is_authenticated %}
+<!-- â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+     AUTHENTICATED LAYOUT â€” sidebar + main
+     â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• -->
+
+<!-- Mobile overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+<!-- â”€â”€ Sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<aside class="sidebar" id="sidebar">
+
+    <!-- Logo -->
+    <a class="sidebar-logo" href="{{ url_for('main.dashboard') if current_user.role != 'admin' else url_for('admin.dashboard') }}">
+        <div class="sidebar-logo-icon">
+            <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="DevSpace" width="32" height="32" style="display:block;">
+        </div>
+        <div class="sidebar-logo-text">
+            <div class="sidebar-logo-name">DevSpace</div>
+        </div>
+    </a>
+
+    <!-- Nav -->
+    <nav class="sidebar-nav">
+
+        {% if current_user.role in ('super_admin', 'admin', 'employee') %}
+        <div class="sidebar-section">Management</div>
+
+        <a class="sidebar-link {% if request.endpoint == 'admin.dashboard' %}active{% endif %}"
+           href="{{ url_for('admin.dashboard') }}">
+            <i class="bi bi-speedometer2"></i> Dashboard
+        </a>
+        <a class="sidebar-link {% if request.endpoint == 'servers.index' %}active{% endif %}"
+           href="{{ url_for('servers.index') }}">
+            <i class="bi bi-server"></i> VPS Servers
+        </a>
+        <a class="sidebar-link {% if request.endpoint == 'servers.terminal' %}active{% endif %}"
+           href="{{ url_for('servers.terminal') }}">
+            <i class="bi bi-terminal-fill"></i> Remote SSH Run
+        </a>
+        <a class="sidebar-link {% if request.endpoint == 'terminal_routes.index' %}active{% endif %}"
+           href="{{ url_for('terminal_routes.index') }}">
+            <i class="bi bi-terminal"></i> Web SSH Terminal
+        </a>
+        
+        <div class="sidebar-section">DevOps modules</div>
+        <a class="sidebar-link {% if request.endpoint == 'docker_bp.index' %}active{% endif %}"
+           href="{{ url_for('docker_bp.index') }}">
+            <i class="bi bi-box-seam"></i> Docker Manager
+        </a>
+        <a class="sidebar-link {% if request.endpoint == 'nginx_bp.index' %}active{% endif %}"
+           href="{{ url_for('nginx_bp.index') }}">
+            <i class="bi bi-globe"></i> Nginx & Domains
+        </a>
+        <a class="sidebar-link {% if request.endpoint == 'automation_bp.index' %}active{% endif %}"
+           href="{{ url_for('automation_bp.index') }}">
+            <i class="bi bi-clock-history"></i> Automations
+        </a>
+        <a class="sidebar-link {% if request.endpoint == 'logs_bp.index' %}active{% endif %}"
+           href="{{ url_for('logs_bp.index') }}">
+            <i class="bi bi-file-earmark-text"></i> Logs Center
+        </a>
+        <a class="sidebar-link {% if request.endpoint == 'admin.python_monitor' %}active{% endif %}"
+           href="{{ url_for('admin.python_monitor') }}">
+            <i class="bi bi-cpu"></i> Python Monitor
+        </a>
+        <a class="sidebar-link {% if request.endpoint == 'admin.ai_monitor' %}active{% endif %}"
+           href="{{ url_for('admin.ai_monitor') }}">
+            <i class="bi bi-robot"></i> AI Monitor
+        </a>
+        <a class="sidebar-link {% if request.endpoint == 'main.zip_deploy_center' %}active{% endif %}"
+           href="{{ url_for('main.zip_deploy_center') }}">
+            <i class="bi bi-file-zip-fill"></i> ZIP Deploy
+        </a>
+
+        <div class="sidebar-section">Security</div>
+        <a class="sidebar-link {% if request.endpoint == 'security.dashboard' %}active{% endif %}"
+           href="{{ url_for('security.dashboard') }}">
+            <i class="bi bi-shield-lock"></i> Security Dashboard
+        </a>
+        <a class="sidebar-link {% if request.endpoint == 'security.twofa_setup' %}active{% endif %}"
+           href="{{ url_for('security.twofa_setup') }}">
+            <i class="bi bi-shield-check"></i> Two-Factor Auth
+        </a>
+
+        <div class="sidebar-section">Administration</div>
+        <a class="sidebar-link {% if request.endpoint in ['admin.users','admin.add_user','admin.edit_user'] %}active{% endif %}"
+           href="{{ url_for('admin.users') }}">
+            <i class="bi bi-people"></i> Users
+        </a>
+        <a class="sidebar-link {% if request.endpoint == 'admin.all_projects' %}active{% endif %}"
+           href="{{ url_for('admin.all_projects') }}">
+            <i class="bi bi-folder2-open"></i> All Projects
+        </a>
+        <a class="sidebar-link {% if request.endpoint == 'admin.email_config' %}active{% endif %}"
+           href="{{ url_for('admin.email_config') }}">
+            <i class="bi bi-envelope-gear"></i> Settings
+        </a>
+        <a class="sidebar-link {% if request.endpoint == 'main.add_project' %}active{% endif %}"
+           href="{{ url_for('main.add_project') }}"
+           style="color:var(--green);">
+            <i class="bi bi-plus-circle"></i> New Project
+        </a>
+
+        {% else %}
+        <div class="sidebar-section">Workspace</div>
+
+        <a class="sidebar-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}"
+           href="{{ url_for('main.dashboard') }}">
+            <i class="bi bi-speedometer2"></i> Dashboard
+        </a>
+        <a class="sidebar-link {% if request.endpoint in ['main.projects','main.add_project','main.edit_project','main.project_detail','main.project_files'] %}active{% endif %}"
+           href="{{ url_for('main.projects') }}">
+            <i class="bi bi-folder2-open"></i> Projects
+        </a>
+        {% endif %}
+
+        <div class="sidebar-section" style="margin-top:16px;">Account</div>
+        <a class="sidebar-link {% if request.endpoint == 'auth.profile' %}active{% endif %}"
+           href="{{ url_for('auth.profile') }}">
+            <i class="bi bi-person-gear"></i> Profile
+        </a>
+        <a class="sidebar-link sidebar-link-danger"
+           href="{{ url_for('auth.logout') }}">
+            <i class="bi bi-box-arrow-right"></i> Sign Out
+        </a>
+
+    </nav>
+
+    <!-- User footer -->
+    <div class="sidebar-footer">
+        <a class="sidebar-user" href="{{ url_for('auth.profile') }}">
+            <div class="sidebar-avatar">{{ current_user.name[0].upper() }}</div>
+            <div class="sidebar-user-info">
+                <div class="sidebar-user-name">{{ current_user.name }}</div>
+                <div class="sidebar-user-role">{{ current_user.plan.upper() }} plan</div>
+            </div>
+            <span class="plan-badge plan-{{ current_user.plan }}" style="flex-shrink:0;">{{ current_user.plan.upper() }}</span>
+        </a>
+    </div>
+
+</aside>
+
+<!-- â”€â”€ Main content â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<div class="main-content">
+
+    <!-- Top bar (mobile toggle + page context) -->
+    <div class="topbar">
+        <button class="topbar-toggle" id="sidebarToggle" onclick="openSidebar()" aria-label="Menu">
+            <i class="bi bi-list"></i>
+        </button>
+        <div class="topbar-title">{% block topbar_title %}DevSpace{% endblock %}</div>
+
+        <!-- Notification / quick action area -->
+        <div style="display:flex; align-items:center; gap:8px; margin-left:auto;">
+            {% if current_user.role != 'admin' %}
+            <a href="{{ url_for('main.add_project') }}"
+               class="btn btn-sm btn-primary"
+               style="display:none;"
+               id="topbarAddBtn">
+                <i class="bi bi-plus"></i> New
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Flash messages -->
+    <div style="padding: 16px 28px 0;">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {% if category == 'success' %}<i class="bi bi-check-circle-fill"></i>
+                        {% elif category == 'danger' %}<i class="bi bi-x-circle-fill"></i>
+                        {% elif category == 'warning' %}<i class="bi bi-exclamation-triangle-fill"></i>
+                        {% else %}<i class="bi bi-info-circle-fill"></i>{% endif %}
+                        <span>{{ message }}</span>
+                        <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Page content -->
+    <div class="page-body">
+        {% block content %}{% endblock %}
+    </div>
+
+</div>
+
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// â”€â”€ CSRF-aware fetch wrapper â€” use instead of raw fetch() for POST calls â”€â”€
+const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]')?.content || '';
+function csrfFetch(url, options = {}) {
+    options.headers = options.headers || {};
+    options.headers['X-CSRFToken'] = CSRF_TOKEN;
+    return fetch(url, options);
+}
+
+function openSidebar() {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('sidebarOverlay').classList.add('show');
+}
+function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarOverlay').classList.remove('show');
+}
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

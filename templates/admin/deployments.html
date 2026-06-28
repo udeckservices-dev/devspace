@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}All Deployments â€” DevSpace{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div class="page-title"><i class="bi bi-terminal"></i> All Deployments</div>
+</div>
+
+<div class="card">
+    {% if deployments %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Project</th>
+                    <th>Owner</th>
+                    <th>Status</th>
+                    <th>Commit</th>
+                    <th>Duration</th>
+                    <th>Time</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in deployments %}
+                <tr>
+                    <td style="color:var(--text-dim);">{{ d.id }}</td>
+                    <td style="font-weight:600;">{{ d.project.name }}</td>
+                    <td style="font-size:13px; color:var(--text-muted);">{{ d.project.user.name }}</td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="status-dot status-{{ d.status }}"></span>
+                            <span class="badge bg-{{ 'success' if d.status == 'success' else 'danger' if d.status == 'failed' else 'warning' if d.status == 'running' else 'secondary' }}">
+                                {{ d.status.upper() }}
+                            </span>
+                        </div>
+                    </td>
+                    <td>
+                        {% if d.commit_message %}
+                            <span class="tag" title="{{ d.commit_message }}" style="max-width:180px; overflow:hidden; display:inline-flex;">
+                                <i class="bi bi-git"></i>
+                                <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                                    {{ d.commit_message[:40] }}{% if d.commit_message|length > 40 %}â€¦{% endif %}
+                                </span>
+                            </span>
+                        {% else %}
+                            <span style="color:var(--text-dim);">â€”</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-size:12.5px; color:var(--text-muted);">
+                        {% if d.finished_at %}
+                            {{ ((d.finished_at - d.created_at).total_seconds()|int) }}s
+                        {% else %}
+                            â€”
+                        {% endif %}
+                    </td>
+                    <td style="font-size:12.5px; white-space:nowrap;">{{ d.created_at.strftime('%b %d, %H:%M') }}</td>
+                    <td>
+                        <a href="{{ url_for('admin.deployment_detail', deployment_id=d.id) }}"
+                           class="btn btn-sm btn-secondary">
+                            <i class="bi bi-eye"></i> Logs
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon"><i class="bi bi-terminal"></i></div>
+        <h4>No Deployments</h4>
+        <p>No deployments have been made yet.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

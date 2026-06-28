@@ -1,0 +1,22 @@
+[Unit]
+Description=DevSpace AI Monitor â€” 24/7 Intelligent Server Monitoring
+After=network.target devspace.service
+Requires=devspace.service
+
+[Service]
+Type=simple
+User=devspace
+Group=devspace
+WorkingDirectory=/opt/devspace/app/devspace
+Environment=FLASK_ENV=production
+Environment=USE_SQLITE=true
+# Generate with: python3 -c "import secrets; print(secrets.token_hex(32))"
+Environment=SECRET_KEY=change-this-to-a-random-secret
+ExecStart=/opt/devspace/app/venv/bin/python3 /opt/devspace/app/devspace/services/monitor_engine.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

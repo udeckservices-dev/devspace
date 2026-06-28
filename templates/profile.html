@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Profile â€” DevSpace{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div class="page-title"><i class="bi bi-person-gear"></i> Profile Settings</div>
+</div>
+
+<div class="row g-4 justify-content-center">
+    <!-- Account info sidebar -->
+    <div class="col-lg-4 col-md-5">
+        <div class="card" style="text-align:center;">
+            <div class="card-body" style="padding:32px 24px;">
+                <div style="width:72px; height:72px; background:linear-gradient(135deg, var(--primary-dim), var(--accent-dim)); border:2px solid var(--border-light); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:32px; color:var(--text-muted); margin:0 auto 16px;">
+                    <i class="bi bi-person"></i>
+                </div>
+                <div style="font-size:18px; font-weight:700; margin-bottom:4px;">{{ current_user.name }}</div>
+                <div style="font-size:13px; color:var(--text-dim); margin-bottom:12px;">{{ current_user.email }}</div>
+                <span class="plan-badge plan-{{ current_user.plan }}">{{ current_user.plan.upper() }} PLAN</span>
+            </div>
+            <div style="border-top:1px solid var(--border);">
+                <div style="display:flex; border-bottom:1px solid var(--border);">
+                    <div style="flex:1; padding:14px; text-align:center; border-right:1px solid var(--border);">
+                        <div style="font-size:20px; font-weight:700;">{{ current_user.projects|length }}</div>
+                        <div style="font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.4px;">Projects</div>
+                    </div>
+                    <div style="flex:1; padding:14px; text-align:center;">
+                        <div style="font-size:20px; font-weight:700;">{{ current_user.get_project_limit() }}</div>
+                        <div style="font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.4px;">Limit</div>
+                    </div>
+                </div>
+                <div style="padding:14px; text-align:center;">
+                    <div style="font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.4px; margin-bottom:4px;">Member Since</div>
+                    <div style="font-size:13px; font-weight:500;">{{ current_user.created_at.strftime('%B %d, %Y') }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit form -->
+    <div class="col-lg-7 col-md-7">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-person-lines-fill"></i> Account Details</div>
+            <div class="card-body">
+                <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="mb-4">
+                        <label for="name" class="form-label">Full Name</label>
+                        <input type="text" class="form-control" id="name" name="name"
+                               value="{{ current_user.name }}" required>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" class="form-control" value="{{ current_user.email }}" disabled
+                               style="opacity:0.6; cursor:not-allowed;">
+                        <div class="form-text"><i class="bi bi-lock"></i> Email cannot be changed</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label">Role</label>
+                        <div style="display:flex; align-items:center; gap:8px; padding:10px 14px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius);">
+                            <i class="bi bi-{{ 'shield-shaded' if current_user.role == 'admin' else 'person' }}"
+                               style="color:{{ 'var(--warning)' if current_user.role == 'admin' else 'var(--text-dim)' }};"></i>
+                            <span style="font-size:14px; color:var(--text);">{{ current_user.role.capitalize() }}</span>
+                        </div>
+                    </div>
+
+                    <div style="border-top:1px solid var(--border); padding-top:20px; margin-top:4px;">
+                        <h5 style="font-size:14px; font-weight:600; margin-bottom:16px; display:flex; align-items:center; gap:8px;">
+                            <i class="bi bi-key" style="color:var(--text-muted);"></i> Change Password
+                            <span style="font-size:12px; color:var(--text-dim); font-weight:400;">(leave blank to keep current)</span>
+                        </h5>
+
+                        <div class="mb-3">
+                            <label for="current_password" class="form-label">Current Password</label>
+                            <input type="password" class="form-control" id="current_password"
+                                   name="current_password" placeholder="Enter current password">
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="new_password" class="form-label">New Password</label>
+                            <input type="password" class="form-control" id="new_password"
+                                   name="new_password" minlength="6" placeholder="At least 6 characters">
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between gap-2 pt-2" style="border-top:1px solid var(--border);">
+                        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Back
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if plans %}
+<div class="row mt-5">
+    <div class="col-12 text-center mb-4">
+        <h3 class="fw-bold text-light"><i class="bi bi-award-fill text-primary"></i> Upgrade Your Subscription Plan</h3>
+        <p class="text-muted">Unlock unlimited remote VPS nodes, automated backups, Let's Encrypt SSL, and team collaboration</p>
+    </div>
+    {% for plan in plans %}
+    <div class="col-md-6 col-lg-3 mb-4">
+        <div class="card h-100 {% if current_user.plan == plan.id %}border-primary{% endif %}" style="position: relative;">
+            {% if current_user.plan == plan.id %}
+            <span class="position-absolute top-0 start-50 translate-middle badge bg-primary" style="z-index: 10;">ACTIVE PLAN</span>
+            {% endif %}
+            <div class="card-header text-center py-4 bg-dark">
+                <h4 class="fw-bold text-light mb-1">{{ plan.name }}</h4>
+                <div class="fs-2 fw-bold text-primary">${{ plan.price_usd }}<span class="fs-6 text-muted">/mo</span></div>
+                <div class="small text-muted">â‚¹{{ plan.price_inr }}/mo</div>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-4">
+                    {% for feat in plan.features %}
+                    <li class="mb-2 text-light small"><i class="bi bi-check2-circle text-primary me-2"></i> {{ feat }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="card-footer bg-transparent border-0 pb-4">
+                {% if current_user.plan == plan.id %}
+                <button class="btn btn-primary w-100" disabled>Current Active Plan</button>
+                {% else %}
+                <form action="{{ url_for('billing.subscribe', plan_id=plan.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-primary w-100">Upgrade to {{ plan.name }}</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% block title %}Dashboard â€” DevSpace{% endblock %}
+{% block topbar_title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- Page header -->
+<div class="page-header">
+    <div>
+        <div class="page-title"><i class="bi bi-speedometer2"></i> Dashboard</div>
+        <div class="page-subtitle">Welcome back, <strong style="color:var(--tx);">{{ current_user.name }}</strong></div>
+    </div>
+    <a href="{{ url_for('main.add_project') }}" class="btn btn-primary">
+        <i class="bi bi-plus-lg"></i> New Project
+    </a>
+</div>
+
+<!-- Stat cards -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-4">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">Projects</div>
+                    <div class="stat-value">{{ project_count }}</div>
+                    <div style="font-size:12px; color:var(--tx-3); margin-top:4px;">of {{ current_user.get_project_limit() }} allowed</div>
+                </div>
+                <div class="stat-icon stat-icon-green"><i class="bi bi-folder2-open"></i></div>
+            </div>
+            {% set pct = (project_count / current_user.get_project_limit() * 100) if current_user.get_project_limit() > 0 else 0 %}
+            <div class="stat-bar">
+                <div class="stat-bar-fill" style="width:{{ [pct,100]|min }}%;"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">Current Plan</div>
+                    <div class="stat-value" style="font-size:22px; margin-top:6px;">
+                        <span class="plan-badge plan-{{ current_user.plan }}" style="font-size:13px; padding:5px 14px;">{{ current_user.plan.upper() }}</span>
+                    </div>
+                </div>
+                <div class="stat-icon stat-icon-purple"><i class="bi bi-award"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-4">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">Deployments</div>
+                    <div class="stat-value">{{ recent_deployments|length }}</div>
+                    <div style="font-size:12px; color:var(--tx-3); margin-top:4px;">recent activity</div>
+                </div>
+                <div class="stat-icon stat-icon-blue"><i class="bi bi-rocket-takeoff"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Body -->
+<div class="row g-4">
+
+    <!-- Projects list -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header" style="justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <i class="bi bi-folder2-open"></i> Your Projects
+                </div>
+                <a href="{{ url_for('main.projects') }}" class="btn btn-sm btn-ghost">
+                    View all <i class="bi bi-arrow-right"></i>
+                </a>
+            </div>
+
+            {% if projects %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Project</th>
+                            <th>Lang</th>
+                            <th>Branch</th>
+                            <th>Last Deploy</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for project in projects %}
+                        <tr class="project-row" style="cursor:pointer;" onclick="window.location='{{ url_for('main.project_detail', project_id=project.id) }}'">
+                            <td>
+                                <div style="font-weight:600;">{{ project.name }}</div>
+                                <code style="font-size:11px; color:var(--tx-3); background:none; border:none; padding:0;">{{ project.deploy_path }}</code>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ 'success' if project.language == 'python' else 'primary' if project.language in ['node','php'] else 'warning' }}">
+                                    {{ project.language.upper() }}
+                                </span>
+                            </td>
+                            <td><code>{{ project.branch }}</code></td>
+                            <td>
+                                {% if project.last_deployed %}
+                                    <div style="display:flex; align-items:center; gap:6px;">
+                                        <span class="status-dot status-success"></span>
+                                        <span style="font-size:12.5px;">{{ project.last_deployed.strftime('%b %d, %H:%M') }}</span>
+                                    </div>
+                                {% else %}
+                                    <span style="font-size:12px; color:var(--tx-3);">Never</span>
+                                {% endif %}
+                            </td>
+                            <td onclick="event.stopPropagation()">
+                                <div class="d-flex gap-1">
+                                    <a href="{{ url_for('main.deploy_project', project_id=project.id) }}"
+                                       class="btn btn-sm btn-deploy"
+                                       onclick="return confirm('Deploy {{ project.name }}?')" title="Deploy">
+                                        <i class="bi bi-rocket-takeoff"></i>
+                                    </a>
+                                    <a href="{{ url_for('main.project_files', project_id=project.id) }}"
+                                       class="btn btn-sm btn-dark" title="Files">
+                                        <i class="bi bi-folder2-open"></i>
+                                    </a>
+                                    <a href="{{ url_for('main.deployment_logs', project_id=project.id) }}"
+                                       class="btn btn-sm btn-dark" title="Logs">
+                                        <i class="bi bi-terminal"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon"><i class="bi bi-folder-x"></i></div>
+                <h4>No projects yet</h4>
+                <p>Create your first project to start deploying with git push.</p>
+                <a href="{{ url_for('main.add_project') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-lg"></i> Create Project
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right column -->
+    <div class="col-lg-4">
+
+        <!-- Recent deployments -->
+        <div class="card">
+            <div class="card-header"><i class="bi bi-clock-history"></i> Recent Deployments</div>
+            {% if recent_deployments %}
+            <div class="list-group list-group-flush">
+                {% for d in recent_deployments %}
+                <div class="list-group-item" style="cursor:pointer;" onclick="window.location='{{ url_for('main.deployment_logs', project_id=d.project_id) }}'">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        <span class="status-dot status-{{ d.status }}"></span>
+                        <strong style="font-size:13px; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ d.project.name }}</strong>
+                        <span class="badge bg-{{ 'success' if d.status == 'success' else 'danger' if d.status == 'failed' else 'warning' if d.status == 'running' else 'secondary' }}">
+                            {{ d.status.upper() }}
+                        </span>
+                    </div>
+                    <div style="font-size:11.5px; color:var(--tx-3); padding-left:16px;">
+                        {{ d.created_at.strftime('%b %d  %H:%M') }}
+                        {% if d.commit_message %}â€” {{ d.commit_message[:35] }}{% if d.commit_message|length > 35 %}â€¦{% endif %}{% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state" style="padding:36px 20px;">
+                <div class="empty-icon" style="width:44px;height:44px;font-size:20px;"><i class="bi bi-clock"></i></div>
+                <p style="margin:0; font-size:13px;">No deployments yet</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Quick-start card -->
+        <div class="card" style="border-color:var(--green-border); background:linear-gradient(135deg, var(--bg-2), rgba(34,197,94,.04));">
+            <div class="card-header" style="border-color:rgba(34,197,94,.15);">
+                <i class="bi bi-lightning-charge" style="color:var(--green);"></i>
+                <span style="color:var(--green);">Quick Deploy</span>
+            </div>
+            <div class="card-body" style="font-size:13px; color:var(--tx-2); line-height:1.9;">
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <div style="display:flex; gap:10px; align-items:flex-start;">
+                        <span style="width:20px; height:20px; border-radius:50%; background:var(--green-dim); border:1px solid var(--green-border); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--green); flex-shrink:0; margin-top:1px;">1</span>
+                        <span>Create a project, get your git remote URL</span>
+                    </div>
+                    <div style="display:flex; gap:10px; align-items:flex-start;">
+                        <span style="width:20px; height:20px; border-radius:50%; background:var(--green-dim); border:1px solid var(--green-border); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--green); flex-shrink:0; margin-top:1px;">2</span>
+                        <span>Run <code>git remote add origin &lt;url&gt;</code></span>
+                    </div>
+                    <div style="display:flex; gap:10px; align-items:flex-start;">
+                        <span style="width:20px; height:20px; border-radius:50%; background:var(--green-dim); border:1px solid var(--green-border); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--green); flex-shrink:0; margin-top:1px;">3</span>
+                        <span><code>git push</code> â€” auto-deploy fires instantly!</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}

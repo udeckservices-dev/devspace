@@ -1,0 +1,134 @@
+{% extends 'base.html' %}
+{% block title %}VPS Servers — Udeck Deploy Manager{% endblock %}
+{% block topbar_title %}Server Management Module{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title"><i class="bi bi-server"></i> VPS Server Instances</h2>
+        <div class="page-subtitle">Manage unlimited remote cloud VPS servers securely from one central hub</div>
+    </div>
+    {% if current_user.role in ('super_admin', 'admin') %}
+    <a href="{{ url_for('servers.add') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> Add VPS Server
+    </a>
+    {% endif %}
+</div>
+
+<div class="row">
+    {% if not servers %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="bi bi-hdd-network"></i></div>
+                    <h4>No VPS Servers Configured Yet</h4>
+                    <p class="text-muted">Start adding remote servers to run deployments, remote commands, docker instances, and automate task flows.</p>
+                    {% if current_user.role in ('super_admin', 'admin') %}
+                    <a href="{{ url_for('servers.add') }}" class="btn btn-sm btn-primary mt-2">
+                        Add Your First Server
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    {% for server in servers %}
+    <div class="col-md-6 col-lg-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-cpu"></i> {{ server.name }}</span>
+                <span id="status-badge-{{ server.id }}" class="badge {% if server.status == 'Active' %}bg-success{% elif server.status == 'Inactive' %}bg-danger{% else %}bg-secondary{% endif %}">
+                    {{ server.status }}
+                </span>
+            </div>
+            <div class="card-body">
+                <div class="mb-2 d-flex justify-content-between">
+                    <span class="text-muted">IP Address:</span>
+                    <span class="font-monospace text-light">{{ server.ip }}:{{ server.ssh_port }}</span>
+                </div>
+                <div class="mb-2 d-flex justify-content-between">
+                    <span class="text-muted">OS Type:</span>
+                    <span class="text-light">{{ server.os_type }}</span>
+                </div>
+                <div class="mb-2 d-flex justify-content-between">
+                    <span class="text-muted">Provider:</span>
+                    <span class="text-light">{{ server.provider }}</span>
+                </div>
+                <div class="mb-2 d-flex justify-content-between">
+                    <span class="text-muted">Control Panel:</span>
+                    <span class="badge bg-primary" id="panel-badge-{{ server.id }}">{{ server.panel_type or 'None' }}</span>
+                </div>
+                <div class="mb-2 d-flex justify-content-between">
+                    <span class="text-muted">Web Server:</span>
+                    <span class="text-light" id="webserver-badge-{{ server.id }}">{{ server.web_server or 'Unknown' }}</span>
+                </div>
+                <div class="mb-3 d-flex justify-content-between">
+                    <span class="text-muted">Tags:</span>
+                    <span>
+                        {% if server.tags %}
+                        {% for tag in server.tags.split(',') %}
+                        <span class="badge bg-primary">{{ tag.strip() }}</span>
+                        {% endfor %}
+                        {% else %}
+                        <span class="text-muted small">None</span>
+                        {% endif %}
+                    </span>
+                </div>
+
+                <div class="d-flex gap-2 justify-content-end border-top pt-3 mt-3">
+                    <button class="btn btn-sm btn-outline-primary" onclick="testConnection({{ server.id }})">
+                        <i class="bi bi-hdd-network"></i> Test Link
+                    </button>
+                    {% if current_user.role in ('super_admin', 'admin') %}
+                    <a href="{{ url_for('servers.edit', server_id=server.id) }}" class="btn btn-sm btn-secondary">
+                        <i class="bi bi-pencil"></i> Edit
+                    </a>
+                    <form action="{{ url_for('servers.delete', server_id=server.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to remove this VPS server record?');" style="display:inline;">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-danger">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function testConnection(serverId) {
+    const badge = document.getElementById(`status-badge-${serverId}`);
+    badge.className = 'badge bg-warning text-dark';
+    badge.innerText = 'Testing...';
+
+    csrfFetch(`/servers/test/${serverId}`, {
+        method: 'POST'
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            badge.className = 'badge bg-success';
+            badge.innerText = 'Active';
+            alert(`SSH Connection tested successfully!\n${data.message}`);
+            window.location.reload();
+        } else {
+            badge.className = 'badge bg-danger';
+            badge.innerText = 'Inactive';
+            alert(`Link test failed: ${data.message}`);
+        }
+    })
+    .catch(err => {
+        badge.className = 'badge bg-danger';
+        badge.innerText = 'Error';
+        alert('Server connection error occurred.');
+    });
+}
+</script>
+{% endblock %}

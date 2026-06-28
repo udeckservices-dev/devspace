@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Active Sessions â€” DevSpace{% endblock %}
+{% block topbar_title %}<i class="bi bi-phone"></i> Manage Sessions{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3" style="max-width:700px;margin:0 auto;">
+
+  <div style="background:var(--bg-2);border:1px solid var(--bd);border-radius:14px;padding:24px 28px;">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+      <div>
+        <h5 style="margin:0 0 4px;"><i class="bi bi-phone"></i> Active Sessions</h5>
+        <span style="font-size:12px;color:#64748b;">{{ sessions|length }} active session(s)</span>
+      </div>
+      {% if sessions|length > 1 %}
+      <button class="btn btn-sm btn-outline-danger" onclick="revokeAll()">
+        <i class="bi bi-x-circle"></i> Revoke All Others
+      </button>
+      {% endif %}
+    </div>
+
+    {% if sessions %}
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      {% for s in sessions %}
+      <div class="session-item" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
+            {{ 'border:1px solid rgba(34,197,94,.3);' if s.session_id == current_sid else 'border:1px solid rgba(255,255,255,.06);' }}
+            background:{{ 'rgba(34,197,94,.05)' if s.session_id == current_sid else 'var(--bg-1)' }};">
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            {% if s.session_id == current_sid %}
+            <span class="badge bg-success" style="font-size:9px;">CURRENT</span>
+            {% endif %}
+            <strong style="font-size:13px;">{{ s.ip_address or 'Unknown IP' }}</strong>
+          </div>
+          <div style="font-size:11px;color:#64748b;margin-top:2px;">
+            {{ s.user_agent[:60] or 'Unknown device' }}
+            {% if s.last_active %} Â· Last active: {{ s.last_active.strftime('%Y-%m-%d %H:%M') }}{% endif %}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="font-size:11px;color:#475569;">
+            {{ s.created_at.strftime('%d %b') if s.created_at else '' }}
+          </span>
+          {% if s.session_id != current_sid %}
+          <button class="btn btn-sm btn-outline-danger" onclick="revoke({{ s.id }})" style="padding:2px 10px;font-size:11px;">
+            <i class="bi bi-x"></i> Revoke
+          </button>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center;padding:40px;color:#475569;">
+      <i class="bi bi-phone" style="font-size:32px;"></i>
+      <p style="margin-top:10px;">No active sessions found</p>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function revoke(sessionId) {
+  if (!confirm('Revoke this session? The user will be logged out.')) return;
+  try {
+    const resp = await csrfFetch('{{ url_for("security.revoke_session", session_id=0) }}'.replace('/0', '/' + sessionId), {
+      method: 'POST'
+    });
+    const data = await resp.json();
+    if (data.ok) location.reload();
+    else alert(data.error || 'Failed');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function revokeAll() {
+  if (!confirm('Revoke ALL other sessions? You will stay logged in.')) return;
+  try {
+    const resp = await csrfFetch('{{ url_for("security.revoke_all_sessions") }}', { method: 'POST' });
+    const data = await resp.json();
+    if (data.ok) location.reload();
+    else alert(data.error || 'Failed');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+</script>
+{% endblock %}

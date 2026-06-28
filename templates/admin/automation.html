@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% block title %}Automations — Udeck Deploy Manager{% endblock %}
+{% block topbar_title %}Automations & Task Scheduler{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title"><i class="bi bi-clock-history"></i> Task Automation & Cron Scheduler</h2>
+        <div class="page-subtitle">Schedule recurring jobs, automated backups, automated updates, cleanups, or auto-restarts on remote nodes</div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Schedule Form -->
+    <div class="col-lg-5">
+        <div class="card mb-4">
+            <div class="card-header"><i class="bi bi-plus-circle"></i> Create Automated Task</div>
+            <div class="card-body">
+                <form action="{{ url_for('automation_bp.add_job') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="mb-3">
+                        <label class="form-label">Task Name</label>
+                        <input type="text" class="form-control" name="name" placeholder="e.g. Daily DB Backup" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Cron Schedule Expression</label>
+                        <input type="text" class="form-control font-monospace" name="schedule" value="0 0 * * *" required>
+                        <div class="form-text">
+                            Standard 5-field cron. Examples:
+                            <br><code>0 0 * * *</code> (Daily midnight)
+                            <br><code>*/15 * * * *</code> (Every 15 minutes)
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Task Command or Action</label>
+                        <input type="text" class="form-control font-monospace text-success bg-dark" name="command" placeholder="e.g. run backup system" required>
+                        <div class="form-text">
+                            Write shell scripts or system command pipelines. Can also use keywords like:
+                            <br><code>backup</code> (Trigger Udeck database & repo backups)
+                            <br><code>cleanup</code> (Prune old logs & release system caches)
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-calendar-plus"></i> Save Automated Task
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Tasks List -->
+    <div class="col-lg-7">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-activity"></i> Active Schedules</span>
+                <span class="badge bg-primary">{{ jobs|length }} Active</span>
+            </div>
+            <div class="card-body p-0">
+                {% if not jobs %}
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="bi bi-alarm"></i></div>
+                    <h4>No Scheduled Automations</h4>
+                    <p class="text-muted">Create cron jobs to perform daily backups, check system health, or recycle application caches.</p>
+                </div>
+                {% else %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Task Details</th>
+                                <th>Cron Expr</th>
+                                <th>Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for j in jobs %}
+                            <tr>
+                                <td>
+                                    <span class="text-light fw-bold">{{ j.name }}</span>
+                                    <code class="d-block small mt-1 text-truncate" style="max-width:240px;">{{ j.command }}</code>
+                                </td>
+                                <td><span class="font-monospace text-light">{{ j.schedule }}</span></td>
+                                <td>
+                                    <span id="status-badge-{{ j.id }}" class="badge {% if j.status == 'success' %}bg-success{% elif j.status == 'failed' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                        {{ j.status }}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-ghost" id="run-btn-{{ j.id }}" onclick="runJobNow({{ j.id }})">
+                                            <i class="bi bi-play-fill"></i> Run
+                                        </button>
+                                        <form action="{{ url_for('automation_bp.delete_job', job_id=j.id) }}" method="POST" onsubmit="return confirm('Remove cron task?');" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="bi bi-trash"></i> Delete
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function runJobNow(jobId) {
+    const btn = document.getElementById(`run-btn-${jobId}`);
+    const badge = document.getElementById(`status-badge-${jobId}`);
+    
+    if (btn) btn.disabled = true;
+    badge.className = 'badge bg-warning text-dark';
+    badge.innerText = 'Running...';
+    
+    csrfFetch(`/automation/run/${jobId}`, {
+        method: 'POST'
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (btn) btn.disabled = false;
+        
+        if (data.ok) {
+            badge.className = 'badge bg-success';
+            badge.innerText = 'Success';
+            alert(`Execution complete:\n${data.output}`);
+        } else {
+            badge.className = 'badge bg-danger';
+            badge.innerText = 'Failed';
+            alert(`Execution failed:\n${data.output}`);
+        }
+    })
+    .catch(err => {
+        if (btn) btn.disabled = false;
+        badge.className = 'badge bg-danger';
+        badge.innerText = 'Error';
+        alert('Could not trigger task execution.');
+    });
+}
+</script>
+{% endblock %}

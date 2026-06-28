@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% block title %}ZIP Deploy Center — Udeck Deploy Manager{% endblock %}
+{% block topbar_title %}ZIP Archive Deploy Center{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title"><i class="bi bi-file-zip-fill"></i> Centralized ZIP Deploy</h2>
+        <div class="page-subtitle">Upload project zip archives directly and secure-extract files to the target workspace.</div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- ZIP Upload Workspace -->
+    <div class="col-lg-5">
+        <div class="card border border-primary-subtle" style="box-shadow: 0 0 20px rgba(0, 110, 255, 0.1);">
+            <div class="card-header"><i class="bi bi-cloud-arrow-up-fill"></i> ZIP Upload Workspace</div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('main.zip_deploy_center') }}" enctype="multipart/form-data" id="zipCenterForm" onsubmit="triggerCenterUploadSpinner()">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    
+                    <div class="mb-4">
+                        <label class="form-label text-muted small uppercase fw-bold" style="font-size:11px;">Select Target Project</label>
+                        <select class="form-select font-monospace" name="project_id" id="projectSelect" required>
+                            <option value="">-- Choose Project Workspace --</option>
+                            {% for project in projects %}
+                            <option value="{{ project.id }}">{{ project.name }} [{{ project.language.upper() }}] -> {{ project.deploy_path }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label text-muted small uppercase fw-bold" style="font-size:11px;">Upload Project ZIP Archive</label>
+                        <input type="file" class="form-control bg-dark border-secondary text-light font-monospace" name="zip_file" accept=".zip" required style="font-size:13px;">
+                        <div class="form-text text-muted" style="font-size:11px; margin-top:6px;">
+                            <i class="bi bi-info-circle"></i> Standard .zip archive format. System will auto-extract files, replacing duplicates in the deployment path.
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100" id="centerUploadBtn">
+                        <i class="bi bi-rocket-takeoff-fill"></i> Upload & Deploy Project
+                    </button>
+                    
+                    <div class="d-none text-center mt-3 p-3 bg-dark border border-secondary rounded" id="centerSpinnerWrap">
+                        <span class="spinner-border spinner-border-sm text-primary" role="status" style="width: 1.25rem; height: 1.25rem;"></span>
+                        <div class="mt-2 text-light small fw-semibold">Uploading and extracting archive...</div>
+                        <div class="text-muted small mt-1 font-monospace" style="font-size: 10.5px;">Validating path safety and unzipping...</div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ZIP Extraction Audit History -->
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-clock-history"></i> ZIP Deployment History</div>
+            <div class="card-body p-0" style="max-height: 520px; overflow-y: auto;">
+                <div class="table-responsive">
+                    <table class="table table-hover table-dark align-middle m-0 bg-transparent" style="font-size: 13px;">
+                        <thead>
+                            <tr class="text-muted small uppercase" style="border-bottom: 2px solid var(--border-md);">
+                                <th class="ps-4">Project</th>
+                                <th>Status</th>
+                                <th>Archive Type</th>
+                                <th>Deployed At</th>
+                                <th class="text-end pe-4">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if not recent_zip_deploys %}
+                            <tr>
+                                <td colspan="5" class="text-center py-5 text-muted">
+                                    <i class="bi bi-file-earmark-zip" style="font-size:32px; display:block; margin-bottom:8px; opacity:.4;"></i>
+                                    No ZIP deployment logs found.
+                                </td>
+                            </tr>
+                            {% else %}
+                            {% for d in recent_zip_deploys %}
+                            <tr class="border-secondary text-light">
+                                <td class="ps-4 fw-bold text-info">{{ d.project.name }}</td>
+                                <td>
+                                    <span class="badge {% if d.status == 'success' %}bg-success{% else %}bg-danger{% endif %} small">
+                                        {{ d.status.upper() }}
+                                    </span>
+                                </td>
+                                <td class="font-monospace text-muted small">ZIP Archive Deploy</td>
+                                <td class="text-light-emphasis">{{ d.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td class="text-end pe-4">
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="viewLogModal({{ d.id }})">
+                                        <i class="bi bi-file-text"></i> View log
+                                    </button>
+                                    <div class="d-none" id="logContent-{{ d.id }}">{{ d.logs }}</div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Logs Terminal Modal -->
+<div class="modal fade" id="logModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content bg-dark border border-secondary text-light rounded-4">
+            <div class="modal-header border-secondary bg-black px-4 py-3">
+                <h5 class="modal-title font-monospace text-info small"><i class="bi bi-terminal-fill"></i> zip-deploy.log</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0 bg-black">
+                <div class="terminal-header px-3 py-2 border-bottom border-secondary bg-dark-deep d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <span class="dot dot-red me-1 bg-danger rounded-circle d-inline-block" style="width:10px; height:10px;"></span>
+                        <span class="dot dot-yellow me-1 bg-warning rounded-circle d-inline-block" style="width:10px; height:10px;"></span>
+                        <span class="dot dot-green me-2 bg-success rounded-circle d-inline-block" style="width:10px; height:10px;"></span>
+                        <span class="font-monospace text-muted small ms-1">udeck-deploy-logger@extraction</span>
+                    </div>
+                </div>
+                <pre class="terminal-output p-4 m-0 font-monospace text-success bg-black" id="logTerminalContent" style="min-height:350px; max-height:480px; overflow-y:auto; font-size:12.5px; white-space:pre-wrap;"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function triggerCenterUploadSpinner() {
+    document.getElementById('centerUploadBtn').disabled = true;
+    document.getElementById('centerUploadBtn').innerHTML = '<i class="bi bi-hourglass-split"></i> Deploying...';
+    document.getElementById('centerSpinnerWrap').classList.remove('d-none');
+}
+
+function viewLogModal(deployId) {
+    const rawLogs = document.getElementById(`logContent-${deployId}`).textContent;
+    document.getElementById('logTerminalContent').innerText = rawLogs;
+    const modal = new bootstrap.Modal(document.getElementById('logModal'));
+    modal.show();
+}
+</script>
+{% endblock %}

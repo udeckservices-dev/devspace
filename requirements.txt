@@ -1,0 +1,13 @@
+Flask
+Flask-SQLAlchemy
+Flask-Login
+PyMySQL
+Werkzeug
+bcrypt
+python-dotenv
+gunicorn
+cryptography
+paramiko
+Flask-Mail
+Flask-WTF
+flask-limiter

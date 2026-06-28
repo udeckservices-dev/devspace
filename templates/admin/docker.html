@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+{% block title %}Docker Manager — Udeck Deploy Manager{% endblock %}
+{% block topbar_title %}Docker DevOps Modules{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title"><i class="bi bi-box-seam"></i> Docker Container Manager</h2>
+        <div class="page-subtitle">Inspect, spin up, terminate, or monitor active container nodes, images, and volumes on remote VPS hosts</div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header"><i class="bi bi-hdd-network"></i> Select VPS Target Server</div>
+    <div class="card-body">
+        <form action="{{ url_for('docker_bp.index') }}" method="GET" class="row align-items-end">
+            <div class="col-md-8 mb-2">
+                <label class="form-label">Server Hostname / Node</label>
+                <select class="form-select" name="server_id" onchange="this.form.submit()">
+                    <option value="">-- Choose target VPS Server --</option>
+                    {% for s in servers %}
+                    <option value="{{ s.id }}" {% if server and server.id == s.id %}selected{% endif %}>
+                        {{ s.name }} ({{ s.ip }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4 mb-2">
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search"></i> Inspect Server</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if server %}
+<div class="row">
+    <!-- Containers List -->
+    <div class="col-12">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-boxes"></i> Active Containers</span>
+                <span class="badge bg-primary">{{ containers|length }} Total</span>
+            </div>
+            <div class="card-body p-0">
+                {% if not containers %}
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="bi bi-box"></i></div>
+                    <h4>No Active Containers Found</h4>
+                    <p class="text-muted">Docker might not be running, or there are no container blocks mapped on this VPS.</p>
+                </div>
+                {% else %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Names</th>
+                                <th>Image</th>
+                                <th>Status / Up-time</th>
+                                <th>Ports</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for c in containers %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="status-dot {% if 'Up' in c.Status %}status-success{% else %}status-failed{% endif %}"></span>
+                                        <span class="font-monospace text-light fw-bold">{{ c.Names }}</span>
+                                    </div>
+                                    <span class="small text-muted font-monospace d-block">{{ c.ID[:12] }}</span>
+                                </td>
+                                <td><span class="badge bg-secondary font-monospace">{{ c.Image }}</span></td>
+                                <td><span class="small text-light">{{ c.Status }}</span></td>
+                                <td><span class="small font-monospace text-light">{{ c.Ports or 'None' }}</span></td>
+                                <td class="text-end">
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-ghost" title="Container Logs" onclick="viewContainerLogs({{ server.id }}, '{{ c.ID }}')">
+                                            <i class="bi bi-file-earmark-code"></i> Logs
+                                        </button>
+                                        {% if 'Up' in c.Status %}
+                                        <button class="btn btn-sm btn-danger btn-sm" onclick="manageContainer({{ server.id }}, '{{ c.ID }}', 'stop')">
+                                            <i class="bi bi-stop-circle"></i> Stop
+                                        </button>
+                                        {% else %}
+                                        <button class="btn btn-sm btn-success btn-sm" onclick="manageContainer({{ server.id }}, '{{ c.ID }}', 'start')">
+                                            <i class="bi bi-play-circle"></i> Start
+                                        </button>
+                                        {% endif %}
+                                        <button class="btn btn-sm btn-outline-primary btn-sm" onclick="manageContainer({{ server.id }}, '{{ c.ID }}', 'restart')">
+                                            <i class="bi bi-arrow-clockwise"></i> Reset
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Images and Volumes -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header"><i class="bi bi-disc"></i> Docker Images</div>
+            <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
+                {% if not images %}
+                <p class="text-muted text-center py-4">No images loaded.</p>
+                {% else %}
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Repository</th>
+                            <th>Tag</th>
+                            <th>Size</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for img in images %}
+                        <tr>
+                            <td><span class="font-monospace text-light small">{{ img.Repository }}</span></td>
+                            <td><span class="badge bg-secondary font-monospace">{{ img.Tag }}</span></td>
+                            <td><span class="small text-muted">{{ img.Size }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header"><i class="bi bi-database-fill-gear"></i> Volume Mounts</div>
+            <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
+                {% if not volumes %}
+                <p class="text-muted text-center py-4">No docker volumes configured.</p>
+                {% else %}
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Driver</th>
+                            <th>Volume Name</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for v in volumes %}
+                        <tr>
+                            <td><span class="badge bg-primary">{{ v.Driver }}</span></td>
+                            <td><span class="font-monospace text-light small">{{ v.Name }}</span></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Logs Modal -->
+<div class="modal fade" id="logsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark border-secondary">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-light" id="logsModalTitle"><i class="bi bi-terminal"></i> Container Output Logs</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <pre id="containerLogsPre" class="terminal-output rounded-0 m-0 border-0" style="max-height:480px;"></pre>
+            </div>
+            <div class="modal-footer border-secondary">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Dismiss</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function manageContainer(serverId, containerId, action) {
+    if (!confirm(`Are you sure you want to ${action} container ${containerId.substring(0, 8)}?`)) return;
+
+    csrfFetch(`/docker/action/${serverId}/${containerId}/${action}`, {
+        method: 'POST'
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('Action completed successfully!');
+            window.location.reload();
+        } else {
+            alert(`Action failed: ${data.message}`);
+        }
+    })
+    .catch(err => {
+        alert('Could not update container status.');
+    });
+}
+
+function viewContainerLogs(serverId, containerId) {
+    const pre = document.getElementById('containerLogsPre');
+    pre.innerText = 'Loading docker container output...';
+    
+    document.getElementById('logsModalTitle').innerText = `Container Logs: ${containerId.substring(0, 12)}`;
+    const myModal = new bootstrap.Modal(document.getElementById('logsModal'));
+    myModal.show();
+
+    fetch(`/docker/logs/${serverId}/${containerId}`)
+    .then(r => r.json())
+    .then(data => {
+        pre.innerText = data.logs || 'No output logs logged for this container.';
+    })
+    .catch(err => {
+        pre.innerText = 'Error loading logs from target container.';
+    });
+}
+</script>
+{% endblock %}

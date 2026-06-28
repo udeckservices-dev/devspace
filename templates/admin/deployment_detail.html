@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Deployment #{{ deployment.id }} â€” DevSpace{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <div class="page-title"><i class="bi bi-terminal"></i> Deployment #{{ deployment.id }}</div>
+        <nav aria-label="breadcrumb" class="mt-1">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.all_deployments') }}">Deployments</a></li>
+                <li class="breadcrumb-item active">#{{ deployment.id }}</li>
+            </ol>
+        </nav>
+    </div>
+    <a href="{{ url_for('admin.all_deployments') }}" class="btn btn-secondary">
+        <i class="bi bi-arrow-left"></i> Back
+    </a>
+</div>
+
+<!-- Info row -->
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card stats-card">
+            <div class="card-body">
+                <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim); font-weight:600; margin-bottom:8px;">Project</div>
+                <div style="font-size:16px; font-weight:700;">{{ deployment.project.name }}</div>
+                <div style="font-size:12px; color:var(--text-dim); margin-top:4px;">{{ deployment.project.user.name }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stats-card">
+            <div class="card-body">
+                <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim); font-weight:600; margin-bottom:8px;">Status</div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="status-dot status-{{ deployment.status }}"></span>
+                    <span class="badge bg-{{ 'success' if deployment.status == 'success' else 'danger' if deployment.status == 'failed' else 'warning' if deployment.status == 'running' else 'secondary' }}" style="font-size:13px; padding:6px 14px;">
+                        {{ deployment.status.upper() }}
+                    </span>
+                </div>
+                {% if deployment.finished_at %}
+                <div style="font-size:12px; color:var(--text-dim); margin-top:6px;">
+                    Duration: {{ ((deployment.finished_at - deployment.created_at).total_seconds()|int) }}s
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stats-card">
+            <div class="card-body">
+                <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim); font-weight:600; margin-bottom:8px;">Timing</div>
+                <div style="font-size:13px; color:var(--text);">Started: {{ deployment.created_at.strftime('%b %d, %Y %H:%M:%S') }}</div>
+                {% if deployment.finished_at %}
+                <div style="font-size:13px; color:var(--text-muted); margin-top:4px;">Finished: {{ deployment.finished_at.strftime('%b %d, %Y %H:%M:%S') }}</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if deployment.commit_message %}
+<div style="margin-bottom:16px; display:flex; align-items:center; gap:10px;">
+    <span class="tag"><i class="bi bi-git"></i> {{ deployment.commit_message }}</span>
+    {% if deployment.commit_date %}
+    <span style="font-size:12px; color:var(--text-dim);">{{ deployment.commit_date.strftime('%b %d, %Y') }}</span>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Logs -->
+<div class="card">
+    <div class="terminal-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span style="margin-left:8px; font-family:var(--font-mono);">deploy.log â€” #{{ deployment.id }}</span>
+    </div>
+    <pre class="terminal-output" style="border-radius:0 0 var(--radius-lg) var(--radius-lg); border-top:none; max-height:600px;">{{ deployment.logs or 'No log output available.' }}</pre>
+</div>
+{% endblock %}

@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}New Project â€” DevSpace{% endblock %}
+{% block topbar_title %}New Project{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <div class="page-title"><i class="bi bi-plus-circle"></i> New Project</div>
+        <nav aria-label="breadcrumb" class="mt-1">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('main.projects') }}">Projects</a></li>
+                <li class="breadcrumb-item active">New</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<div class="row g-4">
+
+    <!-- Form -->
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-git"></i> Project Details</div>
+            <div class="card-body">
+                <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Project Name <span style="color:var(--danger);">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name"
+                               required placeholder="my-awesome-app" autofocus>
+                        <div class="form-text"><i class="bi bi-info-circle"></i> Used as the bare repo folder name on VPS</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Deploy Path</label>
+                        <div id="deployPathPreview" style="
+                            display:flex; align-items:center; gap:10px;
+                            padding:10px 14px;
+                            background:var(--bg-3);
+                            border:1px solid var(--border-md);
+                            border-radius:var(--r-md);
+                            font-family:var(--mono); font-size:13px; color:var(--green);">
+                            <i class="bi bi-folder2-open" style="font-size:16px; flex-shrink:0;"></i>
+                            <span id="deployPathText">{{ deploy_base }}/<em style="color:var(--tx-3);">username</em>/<em style="color:var(--tx-3);">project-name</em></span>
+                        </div>
+                        <div class="form-text"><i class="bi bi-info-circle"></i> Auto-generated from your username + project name. Created on first <code>git push</code>.</div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="branch" class="form-label">Branch</label>
+                            <input type="text" class="form-control" id="branch" name="branch"
+                                   value="main" placeholder="main">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="language" class="form-label">Language / Stack</label>
+                            <select class="form-select" id="language" name="language">
+                                <option value="python">Python</option>
+                                <option value="node">Node.js</option>
+                                <option value="php">PHP</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Optional external URL -->
+                    <div class="mb-3">
+                        <div style="display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; padding:8px 0;"
+                             onclick="toggleExternal()">
+                            <i class="bi bi-chevron-right" id="extChevron"
+                               style="font-size:11px; transition:transform .18s; color:var(--tx-3);"></i>
+                            <span style="font-size:13px; color:var(--tx-2); font-weight:500;">
+                                External Git URL (optional)
+                            </span>
+                        </div>
+                        <div id="externalSection" style="display:none;">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-github"></i></span>
+                                <input type="text" class="form-control" id="repo_url" name="repo_url"
+                                       placeholder="https://github.com/username/repo.git"
+                                       style="border-radius:0 var(--r-md) var(--r-md) 0;">
+                            </div>
+                            <div class="form-text">Fill only if you also pull from GitHub/GitLab. Leave blank to use the VPS bare repo.</div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between gap-2 pt-3" style="border-top:1px solid var(--border);">
+                        <a href="{{ url_for('main.projects') }}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-plus-circle"></i> Create &amp; Init Repo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info sidebar -->
+    <div class="col-lg-5">
+
+        <div class="card" style="border-color:var(--green-border); background:linear-gradient(135deg, var(--bg-2), rgba(34,197,94,.03));">
+            <div class="card-header" style="border-color:rgba(34,197,94,.15);">
+                <i class="bi bi-lightning-charge" style="color:var(--green);"></i>
+                <span style="color:var(--green);">What happens on Create</span>
+            </div>
+            <div class="card-body" style="font-size:13px; color:var(--tx-2); line-height:1.9;">
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <div style="display:flex; gap:10px;">
+                        <span style="color:var(--green); font-weight:700; flex-shrink:0;">â‘ </span>
+                        <span>A <strong style="color:var(--tx);">bare Git repo</strong> is created on this VPS</span>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <span style="color:var(--green); font-weight:700; flex-shrink:0;">â‘¡</span>
+                        <span>A <strong style="color:var(--tx);">post-receive hook</strong> is written for auto-deploy</span>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <span style="color:var(--green); font-weight:700; flex-shrink:0;">â‘¢</span>
+                        <span>You get a <strong style="color:var(--tx);">Git remote URL</strong> to add in VS Code</span>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <span style="color:var(--green); font-weight:700; flex-shrink:0;">â‘£</span>
+                        <span>Every <code>git push</code> = <strong style="color:var(--tx);">instant deploy</strong> to your VPS</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Post-deploy steps -->
+        <div class="card">
+            <div class="card-header"><i class="bi bi-terminal"></i> Post-deploy steps</div>
+            <div class="card-body" style="font-size:13px; color:var(--tx-2);">
+                <div id="lang-info-python">
+                    <ol style="padding-left:18px; line-height:2.2; margin:0;">
+                        <li><code>git checkout -f</code> into deploy path</li>
+                        <li>Create <code>venv</code> if not exists</li>
+                        <li><code>pip install -r requirements.txt</code></li>
+                        <li>Restart systemd service (if <code>service.txt</code>)</li>
+                    </ol>
+                </div>
+                <div id="lang-info-node" style="display:none;">
+                    <ol style="padding-left:18px; line-height:2.2; margin:0;">
+                        <li><code>git checkout -f</code> into deploy path</li>
+                        <li><code>npm install --production</code></li>
+                        <li>Restart systemd service (if <code>service.txt</code>)</li>
+                    </ol>
+                </div>
+                <div id="lang-info-php" style="display:none;">
+                    <ol style="padding-left:18px; line-height:2.2; margin:0;">
+                        <li><code>git checkout -f</code> into deploy path</li>
+                        <li>Done â€” PHP serves files directly</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- Plan usage -->
+        <div class="card">
+            <div class="card-header"><i class="bi bi-award"></i> Plan: <span class="plan-badge plan-{{ current_user.plan }}" style="margin-left:4px;">{{ current_user.plan.upper() }}</span></div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2" style="font-size:13.5px;">
+                    <span style="color:var(--tx-2);">Projects used</span>
+                    <strong>{{ current_user.projects|length }} / {{ current_user.get_project_limit() }}</strong>
+                </div>
+                <div class="stat-bar">
+                    {% set pct = (current_user.projects|length / current_user.get_project_limit() * 100) if current_user.get_project_limit() > 0 else 0 %}
+                    <div class="stat-bar-fill" style="width:{{ [pct,100]|min }}%;"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const langSelect   = document.getElementById('language');
+const nameInput    = document.getElementById('name');
+const deployBase   = {{ deploy_base | tojson }};
+const ownerSlug    = {{ current_user.name | lower | tojson }};   // rough preview
+
+function slug(s) {
+    return s.toLowerCase().trim()
+            .replace(/[^\w\s-]/g, '')
+            .replace(/[\s_]+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '') || 'project';
+}
+
+function updatePathPreview() {
+    const projSlug = nameInput.value.trim() ? slug(nameInput.value) : '<em style="color:var(--tx-3);">project-name</em>';
+    const sep = deployBase.includes('\\') ? '\\' : '/';
+    document.getElementById('deployPathText').innerHTML =
+        `${deployBase}${sep}${ownerSlug}${sep}${projSlug}`;
+}
+
+nameInput.addEventListener('input', updatePathPreview);
+updatePathPreview();
+
+function updateLangInfo() {
+    ['python','node','php'].forEach(l => {
+        document.getElementById('lang-info-' + l).style.display =
+            langSelect.value === l ? '' : 'none';
+    });
+}
+langSelect.addEventListener('change', updateLangInfo);
+updateLangInfo();
+
+function toggleExternal() {
+    const sec     = document.getElementById('externalSection');
+    const chevron = document.getElementById('extChevron');
+    const open    = sec.style.display === '';
+    sec.style.display        = open ? 'none' : '';
+    chevron.style.transform  = open ? '' : 'rotate(90deg)';
+}
+</script>
+{% endblock %}

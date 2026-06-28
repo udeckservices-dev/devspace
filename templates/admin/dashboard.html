@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Admin â€” DevSpace{% endblock %}
+{% block topbar_title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <div class="page-title"><i class="bi bi-shield-shaded"></i> Admin Dashboard</div>
+        <div class="page-subtitle">System overview &amp; controls</div>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <a href="{{ url_for('main.add_project') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> New Project
+        </a>
+        <a href="{{ url_for('admin.add_user') }}" class="btn btn-secondary">
+            <i class="bi bi-person-plus"></i> Add User
+        </a>
+
+    </div>
+</div>
+
+<!-- Stats row -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">Users</div>
+                    <div class="stat-value">{{ total_users }}</div>
+                </div>
+                <div class="stat-icon stat-icon-blue"><i class="bi bi-people"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">Projects</div>
+                    <div class="stat-value">{{ total_projects }}</div>
+                </div>
+                <div class="stat-icon stat-icon-green"><i class="bi bi-folder2-open"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="stat-label">Deployments</div>
+                    <div class="stat-value">{{ total_deployments }}</div>
+                </div>
+                <div class="stat-icon stat-icon-purple"><i class="bi bi-rocket-takeoff"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="stat-card">
+            <div class="stat-label">Plan Distribution</div>
+            <div style="display:flex; flex-direction:column; gap:7px; margin-top:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="plan-badge plan-free">FREE</span>
+                    <strong style="font-size:14px;">{{ plan_stats.free }}</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="plan-badge plan-basic">BASIC</span>
+                    <strong style="font-size:14px;">{{ plan_stats.basic }}</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="plan-badge plan-pro">PRO</span>
+                    <strong style="font-size:14px;">{{ plan_stats.pro }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tables -->
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header" style="justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:8px;"><i class="bi bi-folder2-open"></i> Recent Projects</div>
+                <a href="{{ url_for('admin.all_projects') }}" class="btn btn-sm btn-ghost">View all <i class="bi bi-arrow-right"></i></a>
+            </div>
+            {% if all_projects %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead><tr><th>Project</th><th>Owner</th><th>Lang</th><th>Created</th></tr></thead>
+                    <tbody>
+                        {% for p in all_projects %}
+                        <tr>
+                            <td style="font-weight:600;">
+                                <a href="{{ url_for('main.project_detail', project_id=p.id) }}" style="color:var(--tx); text-decoration:none;">{{ p.name }}</a>
+                            </td>
+                            <td style="font-size:13px; color:var(--tx-2);">{{ p.user.name }}</td>
+                            <td><span class="badge bg-{{ 'success' if p.language == 'python' else 'primary' if p.language in ['node','php'] else 'warning' }}">{{ p.language.upper() }}</span></td>
+                            <td style="font-size:12.5px; color:var(--tx-3);">{{ p.created_at.strftime('%b %d') }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="padding:28px; text-align:center; color:var(--tx-3); font-size:13px;">No projects yet</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header" style="justify-content:space-between;">
+                <div style="display:flex; align-items:center; gap:8px;"><i class="bi bi-clock-history"></i> Recent Deployments</div>
+                <a href="{{ url_for('admin.all_deployments') }}" class="btn btn-sm btn-ghost">View all <i class="bi bi-arrow-right"></i></a>
+            </div>
+            {% if recent_deployments %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead><tr><th>Project</th><th>Status</th><th>Time</th><th></th></tr></thead>
+                    <tbody>
+                        {% for d in recent_deployments %}
+                        <tr>
+                            <td style="font-weight:600;">{{ d.project.name }}</td>
+                            <td>
+                                <div style="display:flex; align-items:center; gap:7px;">
+                                    <span class="status-dot status-{{ d.status }}"></span>
+                                    <span class="badge bg-{{ 'success' if d.status == 'success' else 'danger' if d.status == 'failed' else 'warning' if d.status == 'running' else 'secondary' }}">{{ d.status.upper() }}</span>
+                                </div>
+                            </td>
+                            <td style="font-size:12.5px; color:var(--tx-2);">{{ d.created_at.strftime('%b %d, %H:%M') }}</td>
+                            <td>
+                                <a href="{{ url_for('admin.deployment_detail', deployment_id=d.id) }}" class="btn btn-sm btn-ghost">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="padding:28px; text-align:center; color:var(--tx-3); font-size:13px;">No deployments yet</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

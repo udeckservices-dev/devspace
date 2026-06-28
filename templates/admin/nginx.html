@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block title %}Nginx Domains â€” Udeck Deploy Manager{% endblock %}
+{% block topbar_title %}Nginx Reverse Proxy Hub{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title"><i class="bi bi-globe"></i> Nginx & Domain Manager</h2>
+        <div class="page-subtitle">Configure virtual hosts, point custom domain names, enable SSL let's encrypt redirects, and manage redirect rules</div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Map Domain Form -->
+    <div class="col-lg-5">
+        <div class="card mb-4">
+            <div class="card-header"><i class="bi bi-plus-circle"></i> Map Custom Domain Name</div>
+            <div class="card-body">
+                <form action="{{ url_for('nginx_bp.add_vhost') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="mb-3">
+                        <label class="form-label">Custom Domain / Subdomain</label>
+                        <input type="text" class="form-control" name="domain_name" placeholder="e.g. app.DevSpace.io" required>
+                        <div class="form-text">Point your domain's A record to the target VPS IP before mapping.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Link to Project (Optional)</label>
+                        <select class="form-select" name="project_id">
+                            <option value="">-- Manual Target Mapping --</option>
+                            {% for p in projects %}
+                            <option value="{{ p.id }}">{{ p.name }} (Port: {{ p.port or 'none' }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Internal Port</label>
+                            <input type="number" class="form-control" name="target_port" placeholder="e.g. 5000" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Target Server Node</label>
+                            <select class="form-select" name="server_id" required>
+                                {% for s in servers %}
+                                <option value="{{ s.id }}">{{ s.name }} ({{ s.ip }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-gear-fill"></i> Generate Nginx vhost
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Configurations -->
+    <div class="col-lg-7">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-hdd-stack"></i> Configured Domains</span>
+                <span class="badge bg-primary">{{ vhosts|length }} Total</span>
+            </div>
+            <div class="card-body p-0">
+                {% if not vhosts %}
+                <div class="empty-state">
+                    <div class="empty-icon"><i class="bi bi-globe2"></i></div>
+                    <h4>No Custom Domains Configured</h4>
+                    <p class="text-muted">Generate virtual hosts to point custom domains and request secure SSL certificates.</p>
+                </div>
+                {% else %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Domain</th>
+                                <th>Project / Port</th>
+                                <th>SSL Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for v in vhosts %}
+                            <tr>
+                                <td>
+                                    <span class="text-light fw-bold">{{ v.domain_name }}</span>
+                                    <span class="small text-muted d-block">Created: {{ v.created_at.strftime('%Y-%m-%d') }}</span>
+                                </td>
+                                <td>
+                                    {% if v.project %}
+                                    <span class="badge bg-secondary">{{ v.project.name }}</span>
+                                    {% else %}
+                                    <span class="small text-muted font-monospace">Direct Port: {{ v.redirect_rules }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span id="ssl-badge-{{ v.id }}" class="badge {% if v.ssl_enabled %}bg-success{% else %}bg-warning text-dark{% endif %}">
+                                        {% if v.ssl_enabled %}<i class="bi bi-shield-check"></i> Secured{% else %}<i class="bi bi-shield-slash"></i> Unsecured{% endif %}
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group">
+                                        {% if not v.ssl_enabled %}
+                                        <button class="btn btn-sm btn-outline-primary" id="ssl-btn-{{ v.id }}" onclick="requestSSL({{ v.id }})">
+                                            <i class="bi bi-shield-lock-fill"></i> Install SSL
+                                        </button>
+                                        {% endif %}
+                                        <form action="{{ url_for('nginx_bp.delete_vhost', vhost_id=v.id) }}" method="POST" onsubmit="return confirm('Remove domain config record?');" style="display:inline;">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-danger">
+                                                <i class="bi bi-trash"></i> Delete
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function requestSSL(vhostId) {
+    const btn = document.getElementById(`ssl-btn-${vhostId}`);
+    const badge = document.getElementById(`ssl-badge-${vhostId}`);
+    
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Deploying...';
+    }
+    badge.className = 'badge bg-warning text-dark';
+    badge.innerText = 'Installing Let\'s Encrypt...';
+    
+    csrfFetch(`/nginx/ssl/${vhostId}`, {
+        method: 'POST'
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            badge.className = 'badge bg-success';
+            badge.innerHTML = '<i class="bi bi-shield-check"></i> Secured';
+            if (btn) btn.style.display = 'none';
+            alert('SSL Certificate created and redirect activated successfully!');
+        } else {
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-shield-lock-fill"></i> Install SSL';
+            }
+            badge.className = 'badge bg-danger';
+            badge.innerHTML = '<i class="bi bi-shield-slash"></i> Install Failed';
+            alert(`SSL installation failed: ${data.message}`);
+        }
+    })
+    .catch(err => {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-shield-lock-fill"></i> Install SSL';
+        }
+        badge.className = 'badge bg-warning text-dark';
+        badge.innerHTML = '<i class="bi bi-shield-slash"></i> Unsecured';
+        alert('An error occurred requesting SSL.');
+    });
+}
+</script>
+{% endblock %}

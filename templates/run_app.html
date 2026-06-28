@@ -1,0 +1,549 @@
+{% extends "base.html" %}
+{% block title %}Run App — {{ project.name }}{% endblock %}
+{% block topbar_title %}Run Application{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <div class="page-title">
+            <i class="bi bi-play-circle"></i> {{ project.name }}
+        </div>
+        <nav aria-label="breadcrumb" class="mt-1">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('main.projects') }}">Projects</a></li>
+                <li class="breadcrumb-item"><a href="{{ url_for('main.project_detail', project_id=project.id) }}">{{ project.name }}</a></li>
+                <li class="breadcrumb-item active">Run App</li>
+            </ol>
+        </nav>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     TOP BAR — language badge + STOP / RESTART buttons
+     ══════════════════════════════════════════════════════════ -->
+<div class="run-topbar">
+
+    <div class="run-lang-badge">
+        {% if project.language == 'python' %}
+            <i class="bi bi-filetype-py" style="color:#60a5fa; font-size:18px;"></i>
+            <span>Python</span>
+        {% elif project.language == 'node' %}
+            <i class="bi bi-filetype-js" style="color:#fbbf24; font-size:18px;"></i>
+            <span>Node.js</span>
+        {% else %}
+            <i class="bi bi-filetype-php" style="color:#a78bfa; font-size:18px;"></i>
+            <span>PHP</span>
+        {% endif %}
+    </div>
+
+    <div class="run-ctrl-group">
+        <button class="run-btn run-btn-stop" id="btnStop" onclick="appControl('stop')">
+            <i class="bi bi-stop-fill"></i> STOP APP
+        </button>
+        <button class="run-btn run-btn-restart" id="btnRestart" onclick="appControl('restart')">
+            <i class="bi bi-arrow-clockwise"></i> RESTART
+        </button>
+        <button class="run-btn run-btn-start" id="btnStart" onclick="appControl('start')">
+            <i class="bi bi-play-fill"></i> START APP
+        </button>
+    </div>
+
+    <div class="run-status-wrap">
+        <span class="run-status-dot" id="statusDot"></span>
+        <span class="run-status-text" id="statusText">Checking…</span>
+    </div>
+
+    <div style="margin-left:auto; display:flex; gap:8px;">
+        <a href="{{ url_for('main.project_detail', project_id=project.id) }}" class="btn btn-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+        {% if project.port %}
+        <a href="http://{{ request.host.split(':')[0] }}:{{ project.port }}"
+           target="_blank" class="btn btn-sm btn-secondary">
+            <i class="bi bi-box-arrow-up-right"></i> OPEN
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════
+     MAIN SETTINGS PANEL
+     ══════════════════════════════════════════════════════════ -->
+<form method="POST" id="runForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+
+    <!-- Section 1: Python/Runtime version -->
+    <div class="run-section">
+        <div class="run-section-divider">
+            <span>Runtime Configuration</span>
+        </div>
+
+        <div class="run-field-row">
+            <div class="run-field-label">
+                {% if project.language == 'python' %}Python version
+                {% elif project.language == 'node' %}Node.js version
+                {% else %}PHP version{% endif %}
+            </div>
+            <div class="run-field-input">
+                <div class="run-version-select">
+                    <select class="form-select" name="python_version" id="versionSelect" style="max-width:160px;">
+                        {% if project.language == 'python' %}
+                            {% for v in ['3.13','3.12','3.11','3.10','3.9','3.8'] %}
+                            <option value="{{ v }}" {{ 'selected' if project.python_version == v }}>{{ v }}</option>
+                            {% endfor %}
+                        {% elif project.language == 'node' %}
+                            {% for v in ['20','18','16','14'] %}
+                            <option value="{{ v }}" {{ 'selected' if project.python_version == v }}>{{ v }}</option>
+                            {% endfor %}
+                        {% else %}
+                            {% for v in ['8.2','8.1','8.0','7.4'] %}
+                            <option value="{{ v }}" {{ 'selected' if project.python_version == v }}>{{ v }}</option>
+                            {% endfor %}
+                        {% endif %}
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="run-field-row">
+            <div class="run-field-label">
+                Application root
+                <div class="run-field-hint">Physical path to your deployed code</div>
+            </div>
+            <div class="run-field-input">
+                <input type="text" class="form-control" value="{{ project.deploy_path }}" readonly
+                       style="color:var(--tx-2); cursor:default;">
+            </div>
+        </div>
+
+        <div class="run-field-row">
+            <div class="run-field-label">
+                Application URL
+                <div class="run-field-hint">HTTP/HTTPS link to your application</div>
+            </div>
+            <div class="run-field-input" style="display:flex; gap:10px; align-items:center;">
+                <input type="number" class="form-control" name="port"
+                       value="{{ project.port or '' }}"
+                       placeholder="Port (e.g. 8000)" style="max-width:200px;"
+                       min="1024" max="65535">
+                {% if project.port %}
+                <a href="http://{{ request.host.split(':')[0] }}:{{ project.port }}"
+                   target="_blank" class="btn btn-sm btn-secondary">
+                    <i class="bi bi-box-arrow-up-right"></i> OPEN
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if project.language in ['python', 'node'] %}
+        <div class="run-field-row">
+            <div class="run-field-label">
+                Application startup file
+            </div>
+            <div class="run-field-input">
+                <input type="text" class="form-control" name="startup_file"
+                       value="{{ project.startup_file or '' }}"
+                       placeholder="{% if project.language == 'python' %}app.py{% else %}server.js{% endif %}"
+                       style="max-width:280px;">
+            </div>
+        </div>
+
+        <div class="run-field-row" style="border:none;">
+            <div class="run-field-label">
+                Application Entry point
+                <div class="run-field-hint">Setup WSGI/ASGI callable for your app</div>
+            </div>
+            <div class="run-field-input">
+                <input type="text" class="form-control" name="entry_point"
+                       value="{{ project.entry_point or '' }}"
+                       placeholder="{% if project.language == 'python' %}application{% else %}module.exports{% endif %}"
+                       style="max-width:280px;">
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- Section 2: Service name -->
+    <div class="run-section">
+        <div class="run-section-divider">
+            <span>Service Control</span>
+        </div>
+
+        <div class="run-field-row" style="border:none;">
+            <div class="run-field-label">
+                Systemd service name
+                <div class="run-field-hint">Used for Start / Stop / Restart controls</div>
+            </div>
+            <div class="run-field-input">
+                <input type="text" class="form-control" name="service_name"
+                       value="{{ project.service_name or '' }}"
+                       placeholder="myapp  or  myapp.service"
+                       style="max-width:280px;">
+            </div>
+        </div>
+    </div>
+
+    <!-- Save button -->
+    <div style="margin-bottom:24px;">
+        <button type="submit" class="btn btn-primary">
+            <i class="bi bi-floppy"></i> SAVE
+        </button>
+        <button type="button" class="btn btn-secondary ms-2" onclick="window.location.reload()">
+            CANCEL
+        </button>
+    </div>
+
+</form>
+
+<!-- ══════════════════════════════════════════════════════════
+     SECTION 3 — Configuration files + Install
+     ══════════════════════════════════════════════════════════ -->
+<div class="run-section">
+    <div class="run-section-divider">
+        <span>Configuration Files</span>
+    </div>
+
+    <div style="padding:20px 24px;">
+
+        <!-- Install button -->
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+            {% if project.language == 'python' %}
+            <button class="run-install-btn" id="installBtn" onclick="runInstall('pip')">
+                <i class="bi bi-play-fill"></i> Run Pip Install
+                <span style="font-size:11px; opacity:.7; margin-left:4px;">▾</span>
+            </button>
+            {% elif project.language == 'node' %}
+            <button class="run-install-btn" id="installBtn" onclick="runInstall('npm')">
+                <i class="bi bi-play-fill"></i> Run npm install
+            </button>
+            {% endif %}
+            <div id="installSpinner" style="display:none; color:var(--tx-2); font-size:13px;">
+                <span class="spinner-border spinner-border-sm" style="color:var(--green);"></span>
+                Installing…
+            </div>
+        </div>
+
+        <!-- Detected config files -->
+        {% if config_files %}
+        <div style="margin-bottom:14px;">
+            <div style="font-size:11.5px; color:var(--tx-3); text-transform:uppercase; letter-spacing:.5px; font-weight:600; margin-bottom:10px;">Detected files in deploy path</div>
+            {% for f in config_files %}
+            <div class="config-file-row">
+                <i class="bi bi-file-earmark-text" style="color:var(--green);"></i>
+                <span>{{ f }}</span>
+                <span style="margin-left:auto; font-size:11px; color:var(--tx-3);">
+                    {{ project.deploy_path }}/{{ f }}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="font-size:13px; color:var(--tx-3); padding:12px 0;">
+            <i class="bi bi-info-circle"></i>
+            No config files detected yet — deploy your code first.
+        </div>
+        {% endif %}
+
+        <!-- Add custom file -->
+        <div style="display:flex; gap:8px; align-items:center; margin-top:10px;">
+            <input type="text" class="form-control" id="customFile"
+                   placeholder="Add another file and press enter"
+                   style="max-width:360px; font-size:13px;"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault(); addCustomFile();}">
+            <button class="btn btn-sm btn-secondary" onclick="addCustomFile()">
+                <i class="bi bi-plus-circle"></i> Add
+            </button>
+        </div>
+        <div id="customFileList" style="margin-top:8px;"></div>
+
+    </div>
+</div>
+
+<!-- Install output terminal -->
+<div id="installOutputWrap" style="display:none; margin-bottom:24px;">
+    <div class="terminal-header">
+        <span class="dot dot-red"></span>
+        <span class="dot dot-yellow"></span>
+        <span class="dot dot-green"></span>
+        <span style="margin-left:8px;">install.log</span>
+        <button onclick="document.getElementById('installOutputWrap').style.display='none'"
+                style="margin-left:auto; background:none; border:none; color:var(--tx-3); cursor:pointer; font-size:13px;">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+    <pre class="terminal-output" id="installOutput" style="border-top:none; border-radius:0 0 var(--r-lg) var(--r-lg); min-height:80px;"></pre>
+</div>
+
+{% endblock %}
+
+
+{% block extra_css %}
+<style>
+/* ── Top control bar ─────────────────────────────────────────────────────── */
+.run-topbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 14px 20px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-md);
+    border-radius: var(--r-xl);
+    margin-bottom: 20px;
+}
+
+.run-lang-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--tx);
+    flex-shrink: 0;
+    min-width: 90px;
+}
+
+.run-ctrl-group { display: flex; gap: 6px; }
+
+.run-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: var(--r-sm);
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    letter-spacing: .3px;
+    border: none;
+    cursor: pointer;
+    transition: all .15s;
+}
+.run-btn:active  { transform: scale(.97); }
+.run-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+.run-btn-stop    { background: #ef4444; color: #fff; }
+.run-btn-stop:hover:not(:disabled)    { background: #dc2626; }
+
+.run-btn-restart { background: var(--bg-3); color: var(--tx-2); border: 1px solid var(--border-md); }
+.run-btn-restart:hover:not(:disabled) { background: var(--bg-4); color: var(--tx); }
+
+.run-btn-start   { background: var(--green); color: #000; }
+.run-btn-start:hover:not(:disabled)   { background: #4ade80; }
+
+.run-status-wrap { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+.run-status-dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--tx-3);
+    transition: background .3s, box-shadow .3s;
+    flex-shrink: 0;
+}
+.run-status-dot.running { background: var(--success); box-shadow: 0 0 8px rgba(34,197,94,.5); animation: pulse-dot 2s ease infinite; }
+.run-status-dot.stopped { background: var(--danger);  box-shadow: 0 0 6px rgba(248,113,113,.4); }
+.run-status-dot.dev     { background: var(--blue); }
+
+.run-status-text { font-size: 14px; font-weight: 600; color: var(--tx); }
+
+/* ── Section panels ──────────────────────────────────────────────────────── */
+.run-section {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--r-xl);
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+
+.run-section-divider {
+    background: var(--bg-3);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .7px;
+    color: var(--tx-3);
+}
+
+.run-field-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+}
+
+.run-field-label {
+    width: 220px;
+    flex-shrink: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--tx);
+    padding-top: 2px;
+}
+
+.run-field-hint {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--tx-3);
+    margin-top: 4px;
+    line-height: 1.5;
+}
+
+.run-field-input { flex: 1; }
+
+.run-version-select select {
+    background: var(--bg-3);
+    color: var(--tx);
+    border: 1px solid var(--border-md);
+    padding: 7px 12px;
+    border-radius: var(--r-md);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* ── Install button ──────────────────────────────────────────────────────── */
+.run-install-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 20px;
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    border-radius: var(--r-md);
+    font-size: 13.5px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background .15s;
+    letter-spacing: .2px;
+}
+.run-install-btn:hover { background: #1d4ed8; }
+.run-install-btn:active { transform: scale(.97); }
+
+/* ── Config file row ─────────────────────────────────────────────────────── */
+.config-file-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: var(--r-md);
+    margin-bottom: 6px;
+    font-size: 13.5px;
+    color: var(--tx);
+    font-family: var(--mono);
+}
+</style>
+{% endblock %}
+
+
+{% block extra_js %}
+<script>
+const PROJECT_ID = {{ project.id }};
+
+/* ── Status on load ──────────────────────────────────────────────────────── */
+const STATUS_LABELS = { running:'Running', stopped:'Stopped', unknown:'Unknown', dev:'Local Dev' };
+
+function applyStatus(status) {
+    const dot  = document.getElementById('statusDot');
+    const text = document.getElementById('statusText');
+    dot.className    = 'run-status-dot ' + status;
+    text.textContent = STATUS_LABELS[status] || status;
+
+    // Button enable logic:
+    // running  → Stop + Restart enabled, Start disabled
+    // stopped  → Start enabled, Stop + Restart disabled
+    // unknown  → all enabled (we don't know state, let user try)
+    // dev      → all enabled (Windows local dev — systemd not available but allow click)
+    const running = status === 'running';
+    const stopped = status === 'stopped';
+
+    document.getElementById('btnStart').disabled   = running;
+    document.getElementById('btnStop').disabled    = stopped;
+    document.getElementById('btnRestart').disabled = stopped;
+}
+
+csrfFetch(`/projects/${PROJECT_ID}/status`)
+    .then(r => r.json())
+    .then(d => applyStatus(d.status))
+    .catch(()  => applyStatus('unknown'));
+
+/* ── App controls ────────────────────────────────────────────────────────── */
+function appControl(action) {
+    const text = document.getElementById('statusText');
+    text.textContent = action.charAt(0).toUpperCase() + action.slice(1) + 'ing…';
+    ['btnStart','btnStop','btnRestart'].forEach(id => document.getElementById(id).disabled = true);
+
+    csrfFetch(`/projects/${PROJECT_ID}/control/${action}`, { method:'POST' })
+        .then(r => r.json())
+        .then(d => {
+            applyStatus(d.status || 'unknown');
+            if (d.message) {
+                text.textContent = d.message;
+            }
+            if (!d.ok && d.error) {
+                text.textContent = 'Error: ' + d.error;
+            }
+        })
+        .catch(() => applyStatus('unknown'));
+}
+
+/* ── Install ─────────────────────────────────────────────────────────────── */
+function runInstall(type) {
+    const btn     = document.getElementById('installBtn');
+    const spinner = document.getElementById('installSpinner');
+    const wrap    = document.getElementById('installOutputWrap');
+    const out     = document.getElementById('installOutput');
+
+    btn.disabled     = true;
+    spinner.style.display = 'flex';
+    wrap.style.display    = 'block';
+    out.textContent  = 'Running install…\n';
+
+    const url = type === 'pip'
+        ? `/projects/${PROJECT_ID}/pip-install`
+        : `/projects/${PROJECT_ID}/npm-install`;
+
+    csrfFetch(url, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => {
+            out.textContent = d.output || (d.ok ? 'Done.' : 'Failed.');
+            out.style.color = d.ok ? '#86efac' : '#fca5a5';
+        })
+        .catch(e => {
+            out.textContent = 'Error: ' + e;
+            out.style.color = '#fca5a5';
+        })
+        .finally(() => {
+            btn.disabled          = false;
+            spinner.style.display = 'none';
+        });
+}
+
+/* ── Custom file add ─────────────────────────────────────────────────────── */
+function addCustomFile() {
+    const inp  = document.getElementById('customFile');
+    const list = document.getElementById('customFileList');
+    const val  = inp.value.trim();
+    if (!val) return;
+    const div = document.createElement('div');
+    div.className = 'config-file-row';
+    div.innerHTML = `<i class="bi bi-file-earmark-text" style="color:var(--yellow);"></i>
+        <span>${val}</span>
+        <button onclick="this.parentElement.remove()"
+                style="margin-left:auto; background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px;">
+            <i class="bi bi-x-lg"></i>
+        </button>`;
+    list.appendChild(div);
+    inp.value = '';
+}
+</script>
+{% endblock %}

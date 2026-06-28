@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Verify 2FA â€” DevSpace{% endblock %}
+
+{% block head %}
+<style>
+  .auth-wrap { min-height:80vh; display:flex; align-items:center; justify-content:center; }
+  .auth-card { background:var(--bg-2); border:1px solid var(--bd); border-radius:16px; padding:36px 40px; width:100%; max-width:420px; }
+  .code-input { text-align:center; font-size:28px; letter-spacing:10px; font-family:monospace; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:42px;line-height:1;">ðŸ”</div>
+      <h4 style="margin:8px 0 4px;">Two-Factor Authentication</h4>
+      <p style="color:#64748b;font-size:13px;margin:0;">
+        Enter the 6-digit code from your authenticator app
+      </p>
+    </div>
+
+    <form method="POST">
+      <div class="mb-3">
+        <input type="text" name="totp_code" class="form-control code-input"
+               placeholder="000000" maxlength="6" pattern="[0-9]{6}"
+               inputmode="numeric" autocomplete="off" autofocus
+               style="background:var(--bg-1);border-color:var(--bd);color:var(--tx-1);">
+      </div>
+      <button type="submit" class="btn btn-info w-100" style="padding:10px;">
+        <i class="bi bi-shield-check"></i> Verify & Login
+      </button>
+    </form>
+
+    <div style="margin-top:16px;text-align:center;">
+      <a href="{{ url_for('auth.logout') }}" style="font-size:12px;color:#64748b;">
+        <i class="bi bi-arrow-left"></i> Back to login
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

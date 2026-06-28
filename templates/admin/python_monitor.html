@@ -1,0 +1,340 @@
+{% extends 'base.html' %}
+{% block title %}Python Monitor â€” DevSpace{% endblock %}
+{% block topbar_title %}<i class="bi bi-cpu"></i> Python Monitor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="page-title"><i class="bi bi-cpu"></i> Python Applications Monitor</div>
+        <div class="page-subtitle">SSH into any connected VPS server and scan all running Python applications with their real-time status</div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label fw-bold small text-uppercase" style="color:var(--tx-2);">
+                    <i class="bi bi-server"></i> Select Server
+                </label>
+                <select class="form-select form-select-lg" id="serverSelect">
+                    <option value="">-- All Servers --</option>
+                    {% for svr in servers %}
+                    <option value="{{ svr.id }}">{{ svr.name }} ({{ svr.ip }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button class="btn btn-primary btn-lg w-100" onclick="scanServer()" id="scanBtn">
+                    <i class="bi bi-search"></i> Scan Now
+                </button>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <span style="color:var(--tx-3); font-size:13px;">
+                    <i class="bi bi-info-circle"></i> Scans via SSH â€” shows systemd services &amp; Python processes
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- â”€â”€ Monitoring Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ -->
+<div class="card mb-4">
+    <div class="card-header" style="justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:8px;">
+            <i class="bi bi-bell" style="color:var(--yellow);"></i>
+            <strong>Auto Alert Monitor</strong>
+        </div>
+        <div>
+            <span id="monitorStatusBadge" class="badge bg-secondary">Unknown</span>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-8">
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+                    <button class="btn btn-warning" onclick="runMonitorCheck()" id="monitorBtn">
+                        <i class="bi bi-shield-check"></i> Run Check Now
+                    </button>
+                    <button class="btn btn-outline-warning" onclick="sendTestAlert()" id="testAlertBtn2">
+                        <i class="bi bi-envelope"></i> Send Test Alert Email
+                    </button>
+                    <span id="monitorResult" style="font-size:13px; color:var(--tx-3);"></span>
+                </div>
+                <div style="margin-top:12px; font-size:13px; color:var(--tx-3);">
+                    <i class="bi bi-info-circle"></i>
+                    Compares current running services with previous scan. Sends email alert if any app stopped.
+                    First, configure SMTP in
+                    <a href="{{ url_for('admin.email_config') }}" style="color:var(--green);">Settings â†’ Email Config</a>
+                    and enable "App Stopped" notification.
+                </div>
+                <div style="margin-top:8px; font-size:13px; color:var(--tx-3);">
+                    <i class="bi bi-clock-history"></i>
+                    <span id="monitorLastCheck">No checks yet</span>
+                </div>
+            </div>
+            <div class="col-md-4" style="border-left:1px solid var(--border); padding-left:20px;">
+                <div style="font-size:12px; color:var(--tx-3); margin-bottom:4px;">Cron Webhook URL</div>
+                <code style="font-size:11px; word-break:break-all; color:var(--green);"
+                      id="webhookUrl">Loading...</code>
+                <div style="margin-top:6px;">
+                    <button class="btn btn-sm btn-ghost" onclick="copyWebhookUrl()">
+                        <i class="bi bi-clipboard"></i> Copy
+                    </button>
+                </div>
+                <div style="margin-top:6px; font-size:11px; color:var(--tx-3);">
+                    Add this URL to crontab to run every minute:
+                    <code style="display:block; margin-top:4px; font-size:10px;">* * * * * curl -X POST -H "X-Deploy-Secret: YOUR_SECRET" 'URL'</code>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="results"></div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function scanServer() {
+    const btn = document.getElementById('scanBtn');
+    const sel = document.getElementById('serverSelect');
+    const results = document.getElementById('results');
+    const serverId = sel.value;
+
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Scanning...';
+    results.innerHTML = `<div class="card"><div class="card-body text-center py-5">
+        <div class="spinner-border text-primary mb-3" style="width:2.5rem;height:2.5rem;"></div>
+        <div style="color:var(--tx-2);">Connecting to server${serverId ? '' : 's'} and scanning for Python applications...</div>
+    </div></div>`;
+
+    try {
+        const url = serverId
+            ? '{{ url_for("admin.python_apps_api") }}?server_id=' + serverId
+            : '{{ url_for("admin.python_apps_api") }}';
+        const resp = await fetch(url);
+        const data = await resp.json();
+        let html = '';
+
+        if (!data.ok || !data.servers) {
+            results.innerHTML = `<div class="card"><div class="card-body text-center py-5" style="color:var(--red);">
+                <i class="bi bi-exclamation-triangle" style="font-size:2rem;"></i><div>Failed to fetch data</div></div></div>`;
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-search"></i> Scan Now';
+            return;
+        }
+
+        if (data.servers.length === 0) {
+            results.innerHTML = `<div class="card"><div class="card-body text-center py-5" style="color:var(--tx-3);">
+                <i class="bi bi-inbox" style="font-size:2rem;"></i><div>No servers found in the database.</div></div></div>`;
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-search"></i> Scan Now';
+            return;
+        }
+
+        for (const svr of data.servers) {
+            const connBg = svr.error ? 'bg-danger' : 'bg-success';
+            const connIcon = svr.error ? 'bi-x-circle' : 'bi-check-circle';
+            const connText = svr.error ? `Error: ${svr.error}` : 'Connected';
+
+            html += `<div class="card mb-4">
+                <div class="card-header" style="justify-content:space-between;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <i class="bi bi-server" style="font-size:1.2rem; color:var(--green);"></i>
+                        <strong>${svr.name}</strong>
+                        <span style="color:var(--tx-3); font-size:13px;">${svr.ip}:${svr.port}</span>
+                        <span class="badge bg-${svr.status_in_db === 'Active' ? 'success' : 'secondary'}">${svr.status_in_db}</span>
+                    </div>
+                    <div><span class="badge ${connBg}"><i class="bi ${connIcon}"></i> ${connText}</span></div>
+                </div>`;
+
+            if (svr.error) {
+                html += `<div class="card-body"><div style="color:var(--red); padding:12px; background:rgba(239,68,68,.08); border-radius:8px;">
+                    <i class="bi bi-exclamation-triangle"></i> ${svr.error}
+                </div></div></div>`;
+                continue;
+            }
+
+            // Services
+            html += `<div class="card-body" style="padding-bottom:4px;">
+                <h6 style="color:var(--tx-2); margin-bottom:12px; font-size:14px; font-weight:600;">
+                    <i class="bi bi-gear"></i> Systemd Services
+                </h6>`;
+            if (svr.services && svr.services.length > 0) {
+                html += `<div class="table-responsive"><table class="table table-hover" style="margin-bottom:16px;">
+                    <thead><tr><th>Service Name</th><th>Status</th></tr></thead><tbody>`;
+                for (const s of svr.services) {
+                    const dot = s.status === 'running' ? 'status-success' : 'status-failed';
+                    const label = s.status === 'running' ? 'RUNNING' : 'STOPPED';
+                    const badgeBg = s.status === 'running' ? 'success' : 'danger';
+                    html += `<tr><td style="font-weight:600; font-family:monospace;">${s.name}</td>
+                        <td><div style="display:flex; align-items:center; gap:8px;">
+                            <span class="status-dot ${dot}"></span>
+                            <span class="badge bg-${badgeBg}">${label}</span>
+                        </div></td></tr>`;
+                }
+                html += `</tbody></table></div>`;
+            } else {
+                html += `<div style="color:var(--tx-3); font-size:13px; margin-bottom:16px; padding:8px 0;">No matching systemd services found.</div>`;
+            }
+
+            // Processes
+            html += `<h6 style="color:var(--tx-2); margin-bottom:12px; font-size:14px; font-weight:600;">
+                <i class="bi bi-cpu"></i> Running Python Processes
+            </h6>`;
+            if (svr.processes && svr.processes.length > 0) {
+                html += `<div class="table-responsive"><table class="table table-hover" style="margin-bottom:0;">
+                    <thead><tr><th>App</th><th>PID</th><th>Port</th><th>CPU</th><th>MEM</th><th>User</th><th>Command</th></tr></thead><tbody>`;
+                for (const p of svr.processes) {
+                    const cpuVal = parseFloat(p.cpu) || 0;
+                    const memVal = parseFloat(p.mem) || 0;
+                    const cmdEscaped = (p.cmd || '').replace(/"/g, '&quot;');
+                    let portHtml = '<span style="color:var(--tx-3); font-size:12px;">â€”</span>';
+                    if (p.ports && p.ports.length > 0) {
+                        portHtml = p.ports.map(port => `<span class="badge bg-info" style="font-size:11px;">${port}</span>`).join(' ');
+                    }
+                    html += `<tr>
+                        <td><span class="badge bg-primary">${p.app}</span></td>
+                        <td style="font-family:monospace; font-weight:600;">${p.pid}</td>
+                        <td>${portHtml}</td>
+                        <td>${cpuVal.toFixed(1)}%</td>
+                        <td>${memVal.toFixed(1)}%</td>
+                        <td style="font-size:13px;">${p.user}</td>
+                        <td style="font-size:12px; color:var(--tx-2); max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${cmdEscaped}">${p.cmd}</td>
+                    </tr>`;
+                }
+                html += `</tbody></table></div>`;
+            } else {
+                html += `<div style="color:var(--tx-3); font-size:13px; padding:8px 0;">No Python processes found running on this server.</div>`;
+            }
+
+            html += `</div></div>`;
+        }
+
+        // Timestamp
+        const now = new Date();
+        html += `<div style="text-align:right; margin-top:4px; color:var(--tx-3); font-size:12px;">
+            <i class="bi bi-clock"></i> Last scanned: ${now.toLocaleString()}
+        </div>`;
+
+        results.innerHTML = html;
+    } catch (err) {
+        results.innerHTML = `<div class="card"><div class="card-body text-center py-5" style="color:var(--red);">
+            <i class="bi bi-exclamation-triangle" style="font-size:2rem;"></i>
+            <div>Error: ${err.message}</div></div></div>`;
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-search"></i> Scan Now';
+}
+
+// â”€â”€ Monitor functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+async function loadMonitorStatus() {
+    try {
+        const resp = await fetch('{{ url_for("admin.python_monitor_status") }}');
+        const data = await resp.json();
+        const badge = document.getElementById('monitorStatusBadge');
+        if (data.last_check) {
+            badge.className = 'badge bg-success';
+            badge.textContent = 'Active';
+            document.getElementById('monitorLastCheck').textContent =
+                'Last check: ' + new Date(data.last_check).toLocaleString();
+        } else {
+            badge.className = 'badge bg-secondary';
+            badge.textContent = 'No checks yet';
+        }
+    } catch(e) {}
+}
+
+async function runMonitorCheck() {
+    const btn = document.getElementById('monitorBtn');
+    const result = document.getElementById('monitorResult');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Checking...';
+    result.innerHTML = 'Scanning all servers...';
+
+    try {
+        const resp = await csrfFetch('{{ url_for("admin.python_monitor_run_check") }}', {
+            method: 'POST',
+        });
+        const data = await resp.json();
+
+        if (data.ok) {
+            const alerts = data.alerts || [];
+            const errors = data.errors || [];
+            let msg = '';
+            if (alerts.length > 0) {
+                msg = `<span style="color:#f87171;"><i class="bi bi-exclamation-triangle"></i> ${alerts.length} app(s) down! Email ${data.email_sent ? 'sent' : 'not sent (check email config)'}</span>`;
+            } else {
+                msg = `<span style="color:#22c55e;"><i class="bi bi-check-circle"></i> All ${data.servers_checked} server(s) OK â€” no apps stopped</span>`;
+            }
+            if (errors.length > 0) {
+                msg += `<br><span style="color:var(--tx-3); font-size:12px;">Errors: ${errors.join('; ')}</span>`;
+            }
+            if (data.alerts && data.alerts.length > 0) {
+                msg += '<div style="margin-top:8px; font-size:13px;"><strong>Stopped Services:</strong><ul style="margin:4px 0 0 16px;">';
+                for (const a of data.alerts) {
+                    msg += `<li style="color:#f87171;">${a.server} â†’ ${a.service}</li>`;
+                }
+                msg += '</ul></div>';
+            }
+            result.innerHTML = msg;
+            loadMonitorStatus();
+        } else {
+            result.innerHTML = `<span style="color:#f87171;">Check failed</span>`;
+        }
+    } catch(e) {
+        result.innerHTML = `<span style="color:#f87171;">Error: ${e.message}</span>`;
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-shield-check"></i> Run Check Now';
+}
+
+async function sendTestAlert() {
+    const btn = document.getElementById('testAlertBtn2');
+    const result = document.getElementById('monitorResult');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Sending...';
+    result.innerHTML = 'Sending test alert email...';
+
+    try {
+        const resp = await csrfFetch('{{ url_for("admin.python_monitor_test_alert") }}', {
+            method: 'POST',
+        });
+        const data = await resp.json();
+        if (data.ok) {
+            result.innerHTML = `<span style="color:#22c55e;"><i class="bi bi-check-circle"></i> ${data.message}</span>`;
+        } else {
+            result.innerHTML = `<span style="color:#f87171;"><i class="bi bi-x-circle"></i> ${data.error}</span>`;
+        }
+    } catch(e) {
+        result.innerHTML = `<span style="color:#f87171;"><i class="bi bi-x-circle"></i> Error: ${e.message}</span>`;
+    }
+
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-envelope"></i> Send Test Alert Email';
+}
+
+function copyWebhookUrl() {
+    const el = document.getElementById('webhookUrl');
+    navigator.clipboard.writeText(el.textContent).then(() => {
+        const btn = document.querySelector('[onclick="copyWebhookUrl()"]');
+        btn.innerHTML = '<i class="bi bi-check"></i> Copied!';
+        setTimeout(() => btn.innerHTML = '<i class="bi bi-clipboard"></i> Copy', 2000);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Build webhook URL
+    const webhookUrl = window.location.origin + '{{ url_for("admin.python_monitor_run_check") }}';
+    document.getElementById('webhookUrl').textContent = webhookUrl;
+
+    // Load monitor status
+    loadMonitorStatus();
+});
+</script>
+{% endblock %}

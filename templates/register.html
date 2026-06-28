@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account â€” DevSpace</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="auth-wrapper">
+
+    <!-- Left promo panel -->
+    <div class="auth-promo">
+        <div class="auth-promo-content">
+            <div class="auth-promo-logo">
+                <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="DevSpace" width="42" height="42">
+            </div>
+            <h2>Start deploying today</h2>
+            <p>Get your projects live in seconds. DevSpace handles the git pull, dependency install, and service restart for you.</p>
+
+            <div style="margin-top:28px;">
+                <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.5px; color:var(--text-dim); margin-bottom:14px; font-weight:600;">Plans</div>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <div class="auth-feature" style="justify-content:space-between;">
+                        <span style="color:var(--text-muted);">Free</span>
+                        <span style="font-weight:600; color:var(--text);">1 project</span>
+                    </div>
+                    <div class="auth-feature" style="justify-content:space-between; border-color:rgba(163,113,247,0.25);">
+                        <span style="color:var(--purple);">Basic</span>
+                        <span style="font-weight:600; color:var(--text);">5 projects</span>
+                    </div>
+                    <div class="auth-feature" style="justify-content:space-between; border-color:rgba(46,164,79,0.3);">
+                        <span style="color:var(--primary);">Pro</span>
+                        <span style="font-weight:600; color:var(--text);">Unlimited</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right register form -->
+    <div class="auth-side">
+        <div class="auth-card fade-in">
+            <div class="auth-card-header">
+                <div class="logo"><i class="bi bi-person-plus"></i></div>
+                <h1>Create your account</h1>
+                <p>Start deploying in under a minute</p>
+            </div>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('auth.register') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="mb-3">
+                    <label for="name" class="form-label">Full Name</label>
+                    <input type="text" class="form-control" id="name" name="name"
+                           required autofocus placeholder="John Doe">
+                </div>
+
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email address</label>
+                    <input type="email" class="form-control" id="email" name="email"
+                           required placeholder="you@example.com">
+                </div>
+
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password" name="password"
+                           required minlength="6" placeholder="At least 6 characters">
+                </div>
+
+                <div class="mb-4">
+                    <label for="confirm_password" class="form-label">Confirm Password</label>
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password"
+                           required placeholder="Repeat your password">
+                </div>
+
+                <button type="submit" class="btn btn-primary w-100 btn-lg">
+                    <i class="bi bi-person-check"></i> Create Account
+                </button>
+            </form>
+
+            <div class="text-center mt-4" style="font-size:13.5px; color:var(--text-muted);">
+                Already have an account?
+                <a href="{{ url_for('auth.login') }}" style="color:var(--primary); text-decoration:none; font-weight:600;">
+                    Sign in
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

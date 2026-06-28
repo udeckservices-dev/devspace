@@ -1,0 +1,367 @@
+{% extends 'base.html' %}
+{% block title %}Interactive SSH Terminal — Udeck Deploy Manager{% endblock %}
+{% block topbar_title %}Live Web SSH Terminal{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title"><i class="bi bi-terminal"></i> Web SSH Terminal</h2>
+        <div class="page-subtitle">Open a live, sequential interactive console to manage any active VPS node securely.</div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Server Selector & Session details -->
+    <div class="col-lg-3">
+        <div class="card mb-4">
+            <div class="card-header"><i class="bi bi-hdd-network"></i> Target Connection</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label text-muted small uppercase fw-bold">Select Active Node</label>
+                    <select class="form-select" id="sshServerSelect" onchange="onServerChange()">
+                        <option value="">-- Choose VPS Server --</option>
+                        {% for server in servers %}
+                        <option value="{{ server.id }}" data-ip="{{ server.ip }}" data-username="{{ server.username }}" data-status="{{ server.status }}">
+                            {{ server.name }} ({{ server.ip }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="p-3 rounded bg-dark border border-secondary mb-3 d-none" id="sessionInfoBox">
+                    <div class="small text-muted mb-1">Session Target Details:</div>
+                    <div class="font-monospace small text-light">
+                        <div><strong>IP:</strong> <span id="sessIp"></span></div>
+                        <div><strong>User:</strong> <span id="sessUser"></span></div>
+                        <div><strong>Status:</strong> <span class="badge bg-success" id="sessStatus">Active</span></div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary w-100 mb-2" id="connectBtn" onclick="connectTerminal()">
+                    <i class="bi bi-plug-fill"></i> Establish Session
+                </button>
+                <button class="btn btn-outline-danger w-100 d-none" id="disconnectBtn" onclick="disconnectTerminal()">
+                    <i class="bi bi-power"></i> Terminate Session
+                </button>
+            </div>
+        </div>
+
+        <!-- Quick Macro Commands -->
+        <div class="card mb-4">
+            <div class="card-header"><i class="bi bi-lightning-charge"></i> Quick Triggers</div>
+            <div class="card-body p-2">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-sm btn-outline-info text-start font-monospace" onclick="runMacro('ls -la')">
+                        <i class="bi bi-chevron-right"></i> ls -la
+                    </button>
+                    <button class="btn btn-sm btn-outline-info text-start font-monospace" onclick="runMacro('pwd')">
+                        <i class="bi bi-chevron-right"></i> pwd
+                    </button>
+                    <button class="btn btn-sm btn-outline-info text-start font-monospace" onclick="runMacro('df -h')">
+                        <i class="bi bi-chevron-right"></i> df -h
+                    </button>
+                    <button class="btn btn-sm btn-outline-info text-start font-monospace" onclick="runMacro('free -m')">
+                        <i class="bi bi-chevron-right"></i> free -m
+                    </button>
+                    <button class="btn btn-sm btn-outline-info text-start font-monospace" onclick="runMacro('node -v && npm -v')">
+                        <i class="bi bi-chevron-right"></i> node & npm check
+                    </button>
+                    <button class="btn btn-sm btn-outline-info text-start font-monospace" onclick="runMacro('python3 --version')">
+                        <i class="bi bi-chevron-right"></i> python version
+                    </button>
+                    <button class="btn btn-sm btn-outline-info text-start font-monospace" onclick="runMacro('docker ps')">
+                        <i class="bi bi-chevron-right"></i> docker ps
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Console Panel -->
+    <div class="col-lg-9">
+        <div class="card border border-primary-subtle" style="box-shadow: 0 0 25px rgba(0, 110, 255, 0.15);">
+            <div class="card-header d-flex justify-content-between align-items-center bg-dark">
+                <span class="text-primary-emphasis"><i class="bi bi-terminal-fill"></i> Live Interactive Terminal Console</span>
+                <div class="d-flex gap-2">
+                    <span class="badge bg-secondary font-monospace" id="liveIndicator">OFFLINE</span>
+                    <button class="btn btn-sm btn-ghost text-muted py-0 px-2" onclick="clearLiveConsole()" title="Clear screen">
+                        <i class="bi bi-eraser"></i> Clear
+                    </button>
+                </div>
+            </div>
+            <div class="card-body bg-black p-0 border-bottom border-secondary">
+                <div class="terminal-header px-3 py-2 border-bottom border-secondary bg-dark-deep d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <span class="dot dot-red me-1 bg-danger rounded-circle d-inline-block" style="width:10px; height:10px;"></span>
+                        <span class="dot dot-yellow me-1 bg-warning rounded-circle d-inline-block" style="width:10px; height:10px;"></span>
+                        <span class="dot dot-green me-2 bg-success rounded-circle d-inline-block" style="width:10px; height:10px;"></span>
+                        <span class="font-monospace text-muted small ms-1" id="promptText">udeck-ssh@offline:~#</span>
+                    </div>
+                    <span class="font-monospace text-info small" style="font-size:0.75rem;">Paramiko AES-256 SSH</span>
+                </div>
+                <div class="p-3 font-monospace bg-black text-light border-0" id="liveTerminalOutput" style="height:480px; overflow-y:auto; font-size: 0.95rem; line-height: 1.45; white-space: pre-wrap;">Welcome to Udeck Secure SSH Client.
+1. Select an active VPS target node from the left panel.
+2. Click "Establish Session" to connect.
+3. Type custom terminal inputs below and hit [Enter] or click "Execute".
+--------------------------------------------------------------
+</div>
+            </div>
+            
+            <!-- Terminal input form -->
+            <div class="card-footer bg-dark-deep p-3">
+                <div class="input-group">
+                    <span class="input-group-text bg-black border-secondary text-primary font-monospace" id="promptIndicator">$</span>
+                    <input type="text" class="form-control bg-black text-light border-secondary font-monospace" id="terminalCmdInput" placeholder="Enter commands here (e.g. ls -la, python3 --version, docker info)..." disabled onkeydown="handleInputKey(event)">
+                    <button class="btn btn-primary" type="button" id="cmdSendBtn" onclick="sendTerminalCommand()" disabled>
+                        <i class="bi bi-send"></i> Run
+                    </button>
+                </div>
+                <div class="form-text text-muted mt-2 d-flex justify-content-between">
+                    <span>Press <kbd class="bg-dark border border-secondary text-light">Enter</kbd> to submit command quickly.</span>
+                    <span id="sessionTimerText">Connected: --:--</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let activeServerId = null;
+let isConnected = false;
+let sessionTime = 0;
+let timerInterval = null;
+let currentPath = "~";
+let serverUser = "root";
+let serverIp = "";
+
+function onServerChange() {
+    const select = document.getElementById('sshServerSelect');
+    const option = select.options[select.selectedIndex];
+    const infoBox = document.getElementById('sessionInfoBox');
+    
+    if (!select.value) {
+        infoBox.classList.add('d-none');
+        return;
+    }
+    
+    document.getElementById('sessIp').innerText = option.getAttribute('data-ip');
+    document.getElementById('sessUser').innerText = option.getAttribute('data-username');
+    document.getElementById('sessStatus').innerText = option.getAttribute('data-status') || 'Active';
+    infoBox.classList.remove('d-none');
+}
+
+function connectTerminal() {
+    const select = document.getElementById('sshServerSelect');
+    if (!select.value) {
+        alert('Please select a target VPS node first.');
+        return;
+    }
+    
+    activeServerId = select.value;
+    const option = select.options[select.selectedIndex];
+    serverUser = option.getAttribute('data-username');
+    serverIp = option.getAttribute('data-ip');
+    
+    const consoleOut = document.getElementById('liveTerminalOutput');
+    consoleOut.innerHTML += `\n[session] Connecting to secure node ${serverUser}@${serverIp}... Please wait.\n`;
+    consoleOut.scrollTop = consoleOut.scrollHeight;
+
+    // Test a basic check to confirm connection
+    csrfFetch('/terminal/execute', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            server_id: activeServerId,
+            command: 'whoami && pwd'
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok) {
+            isConnected = true;
+            document.getElementById('liveIndicator').innerText = 'CONNECTED';
+            document.getElementById('liveIndicator').className = 'badge bg-success font-monospace';
+            document.getElementById('terminalCmdInput').disabled = false;
+            document.getElementById('cmdSendBtn').disabled = false;
+            document.getElementById('connectBtn').classList.add('d-none');
+            document.getElementById('disconnectBtn').classList.remove('d-none');
+            document.getElementById('sshServerSelect').disabled = true;
+            
+            // Extract current path
+            if (data.stdout) {
+                const parts = data.stdout.trim().split('\n');
+                if (parts.length > 1) {
+                    currentPath = parts[1].trim();
+                }
+            }
+            
+            updatePrompt();
+            
+            consoleOut.innerHTML += `<span class="text-success">[session] Connection established successfully! Session decrypted via AES-256.</span>\n`;
+            consoleOut.innerHTML += `Type interactive commands to control this server.\n\n`;
+            consoleOut.scrollTop = consoleOut.scrollHeight;
+            
+            startTimer();
+        } else {
+            consoleOut.innerHTML += `<span class="text-danger">[error] Connection failed: ${data.stderr || 'SSH Timeout or Bad Credentials'}</span>\n`;
+            consoleOut.scrollTop = consoleOut.scrollHeight;
+        }
+    })
+    .catch(err => {
+        consoleOut.innerHTML += `<span class="text-danger">[error] Network or Server failure establishing SSH channel: ${err}</span>\n`;
+        consoleOut.scrollTop = consoleOut.scrollHeight;
+    });
+}
+
+function disconnectTerminal() {
+    isConnected = false;
+    stopTimer();
+    
+    document.getElementById('liveIndicator').innerText = 'OFFLINE';
+    document.getElementById('liveIndicator').className = 'badge bg-secondary font-monospace';
+    document.getElementById('terminalCmdInput').disabled = true;
+    document.getElementById('cmdSendBtn').disabled = true;
+    document.getElementById('connectBtn').classList.remove('d-none');
+    document.getElementById('disconnectBtn').classList.add('d-none');
+    document.getElementById('sshServerSelect').disabled = false;
+    
+    document.getElementById('promptText').innerText = 'udeck-ssh@offline:~#';
+    document.getElementById('promptIndicator').innerText = '$';
+    
+    const consoleOut = document.getElementById('liveTerminalOutput');
+    consoleOut.innerHTML += `\n[session] Connection terminated by user. Secure tunnel closed.\n`;
+    consoleOut.scrollTop = consoleOut.scrollHeight;
+}
+
+function updatePrompt() {
+    document.getElementById('promptText').innerText = `${serverUser}@${serverIp}:${currentPath}#`;
+    document.getElementById('promptIndicator').innerText = `${currentPath.split('/').pop() || '/'} $`;
+}
+
+function handleInputKey(event) {
+    if (event.key === 'Enter') {
+        sendTerminalCommand();
+    }
+}
+
+function sendTerminalCommand() {
+    const inputEl = document.getElementById('terminalCmdInput');
+    const command = inputEl.value.trim();
+    if (!command) return;
+    
+    inputEl.value = '';
+    executeCommandOnServer(command);
+}
+
+function runMacro(command) {
+    if (!isConnected) {
+        alert('Please establish an active SSH session first.');
+        return;
+    }
+    executeCommandOnServer(command);
+}
+
+function executeCommandOnServer(command) {
+    const consoleOut = document.getElementById('liveTerminalOutput');
+    consoleOut.innerHTML += `<span class="text-info">${serverUser}@${serverIp}:${currentPath}$</span> <span class="text-light">${command}</span>\n`;
+    consoleOut.scrollTop = consoleOut.scrollHeight;
+    
+    document.getElementById('terminalCmdInput').disabled = true;
+    document.getElementById('cmdSendBtn').disabled = true;
+
+    csrfFetch('/terminal/execute', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            server_id: activeServerId,
+            command: command
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        document.getElementById('terminalCmdInput').disabled = false;
+        document.getElementById('cmdSendBtn').disabled = false;
+        document.getElementById('terminalCmdInput').focus();
+        
+        if (data.ok) {
+            if (data.stdout) {
+                consoleOut.innerHTML += `<span class="text-light-emphasis">${data.stdout}</span>`;
+            } else {
+                consoleOut.innerHTML += `<span class="text-muted italic">(Command executed with no output)</span>\n`;
+            }
+        } else {
+            if (data.stderr) {
+                consoleOut.innerHTML += `<span class="text-danger">${data.stderr}</span>`;
+            } else {
+                consoleOut.innerHTML += `<span class="text-danger">[failed] Command failed execution on remote host.</span>\n`;
+            }
+        }
+        
+        // Try updating the current directory context if it was cd
+        if (command.startsWith('cd ')) {
+            const dest = command.substring(3).trim();
+            // Perform a silent pwd check to find path
+            updatePathSilent();
+        } else {
+            consoleOut.scrollTop = consoleOut.scrollHeight;
+        }
+    })
+    .catch(err => {
+        document.getElementById('terminalCmdInput').disabled = false;
+        document.getElementById('cmdSendBtn').disabled = false;
+        consoleOut.innerHTML += `<span class="text-danger">[network error] Communication lost with local gateway: ${err}</span>\n`;
+        consoleOut.scrollTop = consoleOut.scrollHeight;
+    });
+}
+
+function updatePathSilent() {
+    csrfFetch('/terminal/execute', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            server_id: activeServerId,
+            command: 'pwd'
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.ok && data.stdout) {
+            currentPath = data.stdout.trim();
+            updatePrompt();
+        }
+        const consoleOut = document.getElementById('liveTerminalOutput');
+        consoleOut.scrollTop = consoleOut.scrollHeight;
+    });
+}
+
+function clearLiveConsole() {
+    document.getElementById('liveTerminalOutput').innerHTML = '[screen cleared]\n';
+}
+
+function startTimer() {
+    sessionTime = 0;
+    timerInterval = setInterval(() => {
+        sessionTime++;
+        const mins = Math.floor(sessionTime / 60).toString().padStart(2, '0');
+        const secs = (sessionTime % 60).toString().padStart(2, '0');
+        document.getElementById('sessionTimerText').innerText = `Connected: ${mins}:${secs}`;
+    }, 1000);
+}
+
+function stopTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+    document.getElementById('sessionTimerText').innerText = `Connected: --:--`;
+}
+</script>
+{% endblock %}

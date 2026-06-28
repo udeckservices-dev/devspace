@@ -1,0 +1,33 @@
+# ── Environment ──
+.env
+.env.dev
+.env.live
+
+# ── Database ──
+*.db
+*.sqlite
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# ── IDE / OS ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Deployment scripts (local) ──
+deploy_vps.py
+
+# ── Scratch / temp ──
+scratch/
+tmp/

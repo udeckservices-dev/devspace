@@ -1,0 +1,495 @@
+{% extends "base.html" %}
+{% block title %}AI Monitor â€” DevSpace{% endblock %}
+{% block topbar_title %}<i class="bi bi-robot"></i> AI Monitor{% endblock %}
+
+{% block head %}
+<style>
+  .server-card { background:var(--bg-2); border:1px solid var(--bd); border-radius:12px; padding:18px 22px; }
+  .server-card .status-dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:8px; }
+  .server-card .status-dot.ok { background:#22c55e; }
+  .server-card .status-dot.warn { background:#fbbf24; }
+  .server-card .status-dot.crit { background:#f87171; }
+  .server-card .metric-bar { height:6px; border-radius:3px; background:rgba(255,255,255,.06); margin-top:4px; overflow:hidden; }
+  .server-card .metric-bar .fill { height:100%; border-radius:3px; transition:width .6s ease; }
+  .server-card .metric-bar .fill.cpu-fill { background:linear-gradient(90deg,#3b82f6,#60a5fa); }
+  .server-card .metric-bar .fill.mem-fill { background:linear-gradient(90deg,#8b5cf6,#a78bfa); }
+  .server-card .metric-bar .fill.disk-fill { background:linear-gradient(90deg,#f59e0b,#fbbf24); }
+
+  .anomaly-item { padding:12px 16px; border-left:3px solid transparent; background:var(--bg-1); border-radius:8px; margin-bottom:8px; }
+  .anomaly-item.critical { border-left-color:#f87171; }
+  .anomaly-item.warning { border-left-color:#fbbf24; }
+  .anomaly-item.info { border-left-color:#60a5fa; }
+  .anomaly-item .sev-badge { display:inline-block; padding:1px 8px; border-radius:99px; font-size:11px; font-weight:600; }
+  .sev-critical { background:rgba(248,113,113,.15); color:#f87171; }
+  .sev-warning { background:rgba(251,191,36,.15); color:#fbbf24; }
+  .sev-info { background:rgba(96,165,250,.15); color:#60a5fa; }
+
+  .ai-insight { background:linear-gradient(135deg,rgba(59,130,246,.08),rgba(139,92,246,.08)); border:1px solid rgba(59,130,246,.15); border-radius:10px; padding:16px 20px; }
+  .ai-insight .icon { font-size:20px; margin-right:10px; }
+  .ai-insight p { margin:0; color:#94a3b8; font-size:13px; line-height:1.6; }
+  .ai-insight strong { color:#e8ecf0; }
+
+  .chart-container { background:var(--bg-2); border:1px solid var(--bd); border-radius:12px; padding:18px 20px; }
+  .chart-container canvas { width:100% !important; height:220px !important; }
+
+  .health-score { width:64px; height:64px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:700; }
+  .health-score.excellent { background:rgba(34,197,94,.15); color:#22c55e; }
+  .health-score.good { background:rgba(96,165,250,.15); color:#60a5fa; }
+  .health-score.fair { background:rgba(251,191,36,.15); color:#fbbf24; }
+  .health-score.poor { background:rgba(248,113,113,.15); color:#f87171; }
+
+  .stat-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-top:12px; }
+  .stat-card { background:var(--bg-1); border-radius:8px; padding:12px; text-align:center; }
+  .stat-card .num { font-size:22px; font-weight:700; color:var(--tx-1); }
+  .stat-card .lbl { font-size:11px; color:#475569; text-transform:uppercase; letter-spacing:.5px; margin-top:2px; }
+
+  .blink { animation:blink 2s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  .monitor-header { display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:18px; }
+  .monitor-header .info-text { font-size:13px; color:#64748b; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-3">
+
+  <!-- Header -->
+  <div class="monitor-header">
+    <div style="flex:1">
+      <h4 style="margin:0 0 4px;"><i class="bi bi-robot" style="color:#60a5fa;"></i> AI Monitor</h4>
+      <div class="info-text">
+        <i class="bi bi-lightning-charge"></i> 24/7 Intelligent monitoring with anomaly detection, trend analysis & instant alerts
+      </div>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <select id="serverSelect" class="form-select" style="width:auto;font-size:13px;background:var(--bg-2);border-color:var(--bd);color:var(--tx-1);">
+        <option value="all">All Servers</option>
+        {% for s in servers %}
+        <option value="{{ s.id }}">{{ s.name }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-sm btn-outline-info" onclick="refreshStatus()" id="refreshBtn">
+        <i class="bi bi-arrow-clockwise"></i> Refresh
+      </button>
+      <button class="btn btn-sm btn-warning" onclick="runCheck()" id="runCheckBtn">
+        <i class="bi bi-shield-check"></i> Run Check Now
+      </button>
+    </div>
+  </div>
+
+  <!-- Server Status Cards -->
+  <div id="serverCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-bottom:20px;">
+    <div style="grid-column:1/-1;text-align:center;padding:40px;color:#64748b;">
+      <i class="bi bi-arrow-clockwise" style="font-size:24px;"></i>
+      <p style="margin-top:8px;">Loading server status...</p>
+    </div>
+  </div>
+
+  <div class="row g-3">
+
+    <!-- Chart -->
+    <div class="col-lg-8">
+      <div class="chart-container">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <span style="font-size:14px;font-weight:600;">System Metrics <span id="chartPeriod" style="font-weight:400;font-size:12px;color:#64748b;">(last 6h)</span></span>
+          <div style="display:flex;gap:12px;font-size:12px;">
+            <span><span style="color:#60a5fa;">â—</span> CPU</span>
+            <span><span style="color:#a78bfa;">â—</span> Memory</span>
+            <span><span style="color:#fbbf24;">â—</span> Disk</span>
+          </div>
+        </div>
+        <canvas id="metricsChart"></canvas>
+      </div>
+    </div>
+
+    <!-- AI Insights -->
+    <div class="col-lg-4">
+      <div style="background:var(--bg-2);border:1px solid var(--bd);border-radius:12px;padding:18px 20px;">
+        <div style="font-size:14px;font-weight:600;margin-bottom:14px;">
+          <i class="bi bi-stars" style="color:#a78bfa;"></i> AI Insights
+        </div>
+        <div id="aiInsights">
+          <div style="color:#475569;font-size:13px;text-align:center;padding:20px 0;">
+            <i class="bi bi-hourglass-split"></i> Analyzing metrics...
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Anomalies -->
+  <div style="margin-top:18px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h5 style="margin:0;font-size:15px;"><i class="bi bi-exclamation-triangle" style="color:#f87171;"></i> Active Anomalies & Alerts</h5>
+      <span id="anomalyCount" style="font-size:12px;color:#64748b;">0 active</span>
+    </div>
+    <div id="anomalyList">
+      <div style="text-align:center;padding:30px;color:#475569;font-size:13px;">No anomalies detected âœ…</div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+let metricsChart = null;
+let refreshInterval = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+  refreshStatus();
+  document.getElementById('serverSelect').addEventListener('change', function() {
+    refreshStatus();
+    loadChartData();
+  });
+  refreshInterval = setInterval(refreshStatus, 15000);
+});
+
+async function refreshStatus() {
+  try {
+    const resp = await csrfFetch('{{ url_for("admin.ai_monitor_status") }}');
+    const data = await resp.json();
+    renderServerCards(data.servers);
+    loadChartData();
+    loadAnomalies();
+  } catch(e) {
+    console.error('Status refresh failed:', e);
+  }
+}
+
+function calcHealthScore(svr) {
+  if (!svr.cpu && svr.cpu !== 0) return null;
+  let score = 100;
+  if (svr.cpu > 90) score -= 30;
+  else if (svr.cpu > 75) score -= 15;
+  else if (svr.cpu > 60) score -= 5;
+
+  if (svr.memory > 90) score -= 30;
+  else if (svr.memory > 75) score -= 15;
+  else if (svr.memory > 60) score -= 5;
+
+  if (svr.disk > 92) score -= 25;
+  else if (svr.disk > 80) score -= 10;
+
+  score += svr.anomalies * -5;
+  return Math.max(0, Math.min(100, score));
+}
+
+function getHealthLabel(score) {
+  if (score === null) return {label:'N/A', cls:'poor'};
+  if (score >= 85) return {label:'Excellent', cls:'excellent'};
+  if (score >= 65) return {label:'Good', cls:'good'};
+  if (score >= 40) return {label:'Fair', cls:'fair'};
+  return {label:'Poor', cls:'poor'};
+}
+
+function renderServerCards(servers) {
+  const container = document.getElementById('serverCards');
+  const selected = document.getElementById('serverSelect').value;
+
+  let filtered = servers;
+  if (selected !== 'all') {
+    filtered = servers.filter(s => s.id == selected);
+  }
+
+  if (!filtered.length) {
+    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#64748b;">No servers found</div>';
+    return;
+  }
+
+  let html = '';
+  for (const svr of filtered) {
+    const score = calcHealthScore(svr);
+    const hl = getHealthLabel(score);
+    const dotClass = svr.healthy ? 'ok' : (score !== null && score < 40 ? 'crit' : 'warn');
+
+    html += `<div class="server-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div>
+          <span class="status-dot ${dotClass}${!svr.healthy ? ' blink' : ''}"></span>
+          <strong style="font-size:14px;">${svr.name}</strong>
+          <span style="font-size:11px;color:#475569;margin-left:6px;">${svr.ip}</span>
+        </div>
+        <div class="health-score ${hl.cls}" style="width:44px;height:44px;font-size:15px;">${score !== null ? score : '--'}</div>
+      </div>`;
+
+    if (svr.cpu !== null) {
+      const cpuCls = svr.cpu > 90 ? 'crit' : svr.cpu > 75 ? 'warn' : '';
+      const memCls = svr.memory > 90 ? 'crit' : svr.memory > 75 ? 'warn' : '';
+      const diskCls = svr.disk > 92 ? 'crit' : svr.disk > 80 ? 'warn' : '';
+
+      html += `
+      <div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;">
+          <span style="color:#60a5fa;">CPU</span>
+          <span style="color:${cpuCls === 'crit' ? '#f87171' : cpuCls === 'warn' ? '#fbbf24' : '#94a3b8'}">${svr.cpu}%</span>
+        </div>
+        <div class="metric-bar"><div class="fill cpu-fill" style="width:${Math.min(svr.cpu,100)}%"></div></div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;">
+          <span style="color:#a78bfa;">Memory</span>
+          <span style="color:${memCls === 'crit' ? '#f87171' : memCls === 'warn' ? '#fbbf24' : '#94a3b8'}">${svr.memory}%</span>
+        </div>
+        <div class="metric-bar"><div class="fill mem-fill" style="width:${Math.min(svr.memory,100)}%"></div></div>
+      </div>
+      <div style="margin-bottom:6px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;">
+          <span style="color:#fbbf24;">Disk</span>
+          <span style="color:${diskCls === 'crit' ? '#f87171' : diskCls === 'warn' ? '#fbbf24' : '#94a3b8'}">${svr.disk}%</span>
+        </div>
+        <div class="metric-bar"><div class="fill disk-fill" style="width:${Math.min(svr.disk,100)}%"></div></div>
+      </div>`;
+
+      html += `<div class="stat-grid">
+        <div class="stat-card"><div class="num" style="font-size:16px;">${svr.load || '--'}</div><div class="lbl">Load Avg</div></div>
+        <div class="stat-card"><div class="num" style="font-size:16px;">${svr.procs || '--'}</div><div class="lbl">Processes</div></div>
+        <div class="stat-card"><div class="num" style="font-size:16px;${svr.anomalies > 0 ? 'color:#f87171' : ''}">${svr.anomalies}</div><div class="lbl">Anomalies</div></div>
+      </div>`;
+    } else {
+      html += `<div style="text-align:center;padding:10px;color:#475569;font-size:13px;">
+        <i class="bi bi-hourglass-split blink"></i> Waiting for first data collection...
+      </div>`;
+    }
+
+    html += `</div>`;
+  }
+
+  container.innerHTML = html;
+}
+
+async function loadChartData() {
+  const serverId = document.getElementById('serverSelect').value;
+  try {
+    const resp = await csrfFetch(`{{ url_for("admin.ai_monitor_data") }}?server_id=${serverId === 'all' ? '' : serverId}&hours=6`);
+    const data = await resp.json();
+    renderChart(data.chart);
+    renderAnomalies(data.anomalies);
+    renderAIInsights(data.chart);
+  } catch(e) {
+    console.error('Chart load failed:', e);
+  }
+}
+
+function renderChart(chartData) {
+  if (!chartData || !chartData.labels.length) return;
+
+  const ctx = document.getElementById('metricsChart').getContext('2d');
+
+  if (metricsChart) {
+    metricsChart.destroy();
+  }
+
+  const gradientCpu = ctx.createLinearGradient(0,0,0,220);
+  gradientCpu.addColorStop(0, 'rgba(96,165,250,.25)');
+  gradientCpu.addColorStop(1, 'rgba(96,165,250,0)');
+
+  const gradientMem = ctx.createLinearGradient(0,0,0,220);
+  gradientMem.addColorStop(0, 'rgba(167,139,250,.25)');
+  gradientMem.addColorStop(1, 'rgba(167,139,250,0)');
+
+  const gradientDisk = ctx.createLinearGradient(0,0,0,220);
+  gradientDisk.addColorStop(0, 'rgba(251,191,36,.2)');
+  gradientDisk.addColorStop(1, 'rgba(251,191,36,0)');
+
+  metricsChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: chartData.labels,
+      datasets: [
+        {
+          label: 'CPU %',
+          data: chartData.cpu,
+          borderColor: '#60a5fa',
+          backgroundColor: gradientCpu,
+          borderWidth: 2,
+          fill: true,
+          tension: .3,
+          pointRadius: 0,
+          pointHitRadius: 6,
+        },
+        {
+          label: 'Memory %',
+          data: chartData.memory,
+          borderColor: '#a78bfa',
+          backgroundColor: gradientMem,
+          borderWidth: 2,
+          fill: true,
+          tension: .3,
+          pointRadius: 0,
+          pointHitRadius: 6,
+        },
+        {
+          label: 'Disk %',
+          data: chartData.disk,
+          borderColor: '#fbbf24',
+          backgroundColor: gradientDisk,
+          borderWidth: 2,
+          fill: true,
+          tension: .3,
+          pointRadius: 0,
+          pointHitRadius: 6,
+        },
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,.04)', drawBorder: false },
+          ticks: { color: '#475569', font: { size: 10 }, maxTicksLimit: 12 },
+        },
+        y: {
+          min: 0,
+          max: 100,
+          grid: { color: 'rgba(255,255,255,.04)', drawBorder: false },
+          ticks: { color: '#475569', font: { size: 10 } },
+        }
+      },
+      interaction: { intersect: false, mode: 'index' },
+    }
+  });
+}
+
+function renderAIInsights(chartData) {
+  const container = document.getElementById('aiInsights');
+  if (!chartData || !chartData.cpu || !chartData.cpu.length) {
+    container.innerHTML = '<div style="color:#475569;font-size:13px;text-align:center;padding:16px 0;">Not enough data yet</div>';
+    return;
+  }
+
+  const cpu = chartData.cpu.filter(v => v !== null);
+  const mem = chartData.memory.filter(v => v !== null);
+  const disk = chartData.disk.filter(v => v !== null);
+
+  const avgCpu = cpu.length ? (cpu.reduce((a,b) => a+b, 0) / cpu.length).toFixed(1) : '--';
+  const avgMem = mem.length ? (mem.reduce((a,b) => a+b, 0) / mem.length).toFixed(1) : '--';
+  const avgDisk = disk.length ? (disk.reduce((a,b) => a+b, 0) / disk.length).toFixed(1) : '--';
+  const maxCpu = cpu.length ? Math.max(...cpu).toFixed(1) : '--';
+  const maxMem = mem.length ? Math.max(...mem).toFixed(1) : '--';
+
+  let insights = [];
+
+  if (cpu.length > 5) {
+    const first = cpu.slice(-5).reduce((a,b) => a+b, 0) / 5;
+    if (first > 75) insights.push('CPU consistently high');
+  }
+
+  if (mem.length > 5) {
+    const first = mem.slice(-5).reduce((a,b) => a+b, 0) / 5;
+    if (first > 85) insights.push('Memory critically high');
+    else if (first > 70) insights.push('Memory elevated');
+
+    if (mem.length > 10) {
+      const older = mem.slice(0,5).reduce((a,b) => a+b, 0) / 5;
+      const newer = mem.slice(-5).reduce((a,b) => a+b, 0) / 5;
+      if (newer - older > 10) insights.push('Memory trending up â€” possible leak');
+    }
+  }
+
+  let html = '';
+
+  if (insights.length) {
+    for (const ins of insights) {
+      html += `<div class="ai-insight" style="margin-bottom:8px;">
+        <div style="display:flex;align-items:flex-start;">
+          <span class="icon">ðŸ§ </span>
+          <div><p><strong>Insight:</strong> ${ins}</p></div>
+        </div>
+      </div>`;
+    }
+  } else {
+    html += `<div class="ai-insight" style="margin-bottom:8px;">
+      <div style="display:flex;align-items:flex-start;">
+        <span class="icon">âœ…</span>
+        <div><p><strong>All clear.</strong> No unusual patterns detected in the monitoring window.</p></div>
+      </div>
+    </div>`;
+  }
+
+  html += `<div style="margin-top:12px;font-size:12px;color:#475569;">
+    <div><span style="color:#60a5fa;">â—</span> Avg CPU: <strong style="color:#e8ecf0;">${avgCpu}%</strong> &nbsp;Â·&nbsp; Peak: <strong style="color:#f87171;">${maxCpu}%</strong></div>
+    <div><span style="color:#a78bfa;">â—</span> Avg Mem: <strong style="color:#e8ecf0;">${avgMem}%</strong> &nbsp;Â·&nbsp; Peak: <strong style="color:#f87171;">${maxMem}%</strong></div>
+    <div><span style="color:#fbbf24;">â—</span> Avg Disk: <strong style="color:#e8ecf0;">${avgDisk}%</strong></div>
+  </div>`;
+
+  container.innerHTML = html;
+}
+
+async function loadAnomalies() {
+  const serverId = document.getElementById('serverSelect').value;
+  try {
+    const resp = await csrfFetch(`{{ url_for("admin.ai_monitor_data") }}?server_id=${serverId === 'all' ? '' : serverId}&hours=24`);
+    const data = await resp.json();
+    renderAnomalies(data.anomalies);
+  } catch(e) {}
+}
+
+function renderAnomalies(anomalies) {
+  const container = document.getElementById('anomalyList');
+  const countEl = document.getElementById('anomalyCount');
+
+  if (!anomalies || !anomalies.length) {
+    container.innerHTML = '<div style="text-align:center;padding:30px;color:#475569;font-size:13px;">No anomalies detected âœ…</div>';
+    countEl.textContent = '0 active';
+    return;
+  }
+
+  countEl.textContent = `${anomalies.length} active`;
+  let html = '';
+  for (const a of anomalies) {
+    const sev = a.severity || 'info';
+    html += `<div class="anomaly-item ${sev}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <span class="sev-badge sev-${sev}">${sev.toUpperCase()}</span>
+          <span style="font-size:13px;font-weight:600;margin-left:8px;">${a.title}</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="font-size:11px;color:#475569;">${a.created_at ? new Date(a.created_at).toLocaleTimeString() : ''}</span>
+          <button class="btn btn-sm btn-outline-success" onclick="resolveAnomaly(${a.id})" style="padding:1px 8px;font-size:11px;">
+            <i class="bi bi-check"></i>
+          </button>
+        </div>
+      </div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">${a.message || ''}</div>
+    </div>`;
+  }
+  container.innerHTML = html;
+}
+
+async function resolveAnomaly(id) {
+  try {
+    await csrfFetch(`{{ url_for("admin.ai_monitor_resolve", anomaly_id=0) }}`.replace('/0', `/${id}`), {
+      method: 'POST',
+    });
+    loadAnomalies();
+    refreshStatus();
+  } catch(e) {
+    console.error('Resolve failed:', e);
+  }
+}
+
+async function runCheck() {
+  const btn = document.getElementById('runCheckBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Checking...';
+  try {
+    const resp = await csrfFetch('{{ url_for("admin.ai_monitor_run_check") }}', { method: 'POST' });
+    const data = await resp.json();
+    if (data.ok) {
+      refreshStatus();
+    }
+  } catch(e) {
+    console.error('Run check failed:', e);
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-shield-check"></i> Run Check Now';
+}
+</script>
+{% endblock %}

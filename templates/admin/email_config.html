@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% block title %}Email Settings â€” DevSpace{% endblock %}
+{% block topbar_title %}Email Configuration{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <div class="page-title"><i class="bi bi-envelope-gear"></i> Email Settings</div>
+        <div class="page-subtitle">Configure SMTP and notification preferences</div>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }} mb-4">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+<form method="POST" action="{{ url_for('admin.email_config') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <!-- Enable toggle -->
+  <div class="card mb-4">
+    <div class="card-header" style="display:flex;align-items:center;gap:12px;">
+      <i class="bi bi-toggle-on" style="font-size:18px;color:var(--blue)"></i>
+      <span style="font-weight:600;">Enable Email Notifications</span>
+      <label class="toggle-switch" style="margin-left:auto;">
+        <input type="checkbox" name="enabled" {% if cfg.enabled %}checked{% endif %}>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- SMTP settings -->
+  <div class="card mb-4">
+    <div class="card-header"><i class="bi bi-server"></i> SMTP Server</div>
+    <div class="card-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label class="form-label">SMTP Host</label>
+          <input type="text" name="smtp_host" class="form-control"
+                 placeholder="smtp.gmail.com" value="{{ cfg.smtp_host or '' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">SMTP Port</label>
+          <input type="number" name="smtp_port" class="form-control"
+                 placeholder="587" value="{{ cfg.smtp_port or 587 }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input type="text" name="smtp_user" class="form-control"
+                 placeholder="you@gmail.com" value="{{ cfg.smtp_user or '' }}" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password
+            <span style="color:var(--tx-3);font-size:12px;font-weight:400;">(leave blank to keep current)</span>
+          </label>
+          <input type="password" name="smtp_password" class="form-control"
+                 placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" autocomplete="new-password">
+        </div>
+        <div class="form-group">
+          <label class="form-label">From Name</label>
+          <input type="text" name="from_name" class="form-control"
+                 placeholder="DevSpace" value="{{ cfg.from_name or 'DevSpace' }}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">From Email</label>
+          <input type="email" name="from_email" class="form-control"
+                 placeholder="deploy@yourserver.com" value="{{ cfg.from_email or '' }}">
+        </div>
+      </div>
+
+      <div style="display:flex;gap:24px;margin-top:16px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;">
+          <input type="checkbox" name="use_tls" {% if cfg.use_tls %}checked{% endif %}>
+          <span>Use TLS (STARTTLS)</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;">
+          <input type="checkbox" name="use_ssl" {% if cfg.use_ssl %}checked{% endif %}>
+          <span>Use SSL (port 465)</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification events -->
+  <div class="card mb-4">
+    <div class="card-header"><i class="bi bi-bell"></i> Notification Events</div>
+    <div class="card-body">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;">
+        <label class="notif-row">
+          <input type="checkbox" name="notify_deploy_success" {% if cfg.notify_deploy_success %}checked{% endif %}>
+          <span class="notif-icon" style="background:rgba(34,197,94,.12);color:#22c55e"><i class="bi bi-check-circle"></i></span>
+          <span>Deploy Success</span>
+        </label>
+        <label class="notif-row">
+          <input type="checkbox" name="notify_deploy_fail" {% if cfg.notify_deploy_fail %}checked{% endif %}>
+          <span class="notif-icon" style="background:rgba(248,113,113,.12);color:#f87171"><i class="bi bi-x-circle"></i></span>
+          <span>Deploy Failed</span>
+        </label>
+        <label class="notif-row">
+          <input type="checkbox" name="notify_app_start" {% if cfg.notify_app_start %}checked{% endif %}>
+          <span class="notif-icon" style="background:rgba(96,165,250,.12);color:#60a5fa"><i class="bi bi-play-circle"></i></span>
+          <span>App Started</span>
+        </label>
+        <label class="notif-row">
+          <input type="checkbox" name="notify_app_stop" {% if cfg.notify_app_stop %}checked{% endif %}>
+          <span class="notif-icon" style="background:rgba(251,191,36,.12);color:#fbbf24"><i class="bi bi-stop-circle"></i></span>
+          <span>App Stopped (Monitor Alert)</span>
+        </label>
+        <label class="notif-row" style="grid-column:1/-1;">
+          <input type="checkbox" name="notify_admin" {% if cfg.notify_admin %}checked{% endif %}>
+          <span class="notif-icon" style="background:rgba(167,139,250,.12);color:#a78bfa"><i class="bi bi-shield-person"></i></span>
+          <span>Also notify admin (in addition to project owner)</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Monitor Alert Recipients -->
+  <div class="card mb-4">
+    <div class="card-header"><i class="bi bi-envelope-paper"></i> Monitor Alert Recipients</div>
+    <div class="card-body">
+      <div class="form-group">
+        <label class="form-label">Email Addresses</label>
+        <input type="text" name="monitor_recipients" class="form-control"
+               placeholder="admin@example.com, user2@example.com"
+               value="{{ cfg.monitor_recipients or '' }}">
+        <div class="form-text" style="margin-top:6px; font-size:12px; color:var(--tx-3);">
+          <i class="bi bi-info-circle"></i>
+          Comma-separated email IDs jo app down hone par alert receive karein.
+          Khali chhodoge to sirf admin users ko jayega.
+          <br><strong>Note:</strong> "App Stopped" toggle bhi ON hona chahiye upar.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:12px;flex-wrap:wrap;">
+    <button type="submit" class="btn btn-primary">
+      <i class="bi bi-floppy"></i> Save Settings
+    </button>
+    <button type="button" class="btn btn-secondary" id="testEmailBtn">
+      <i class="bi bi-send"></i> Send Test Email
+    </button>
+    <button type="button" class="btn btn-warning" id="testAlertBtn">
+      <i class="bi bi-bell"></i> Send Test Alert
+    </button>
+    <span id="testResult" style="line-height:36px;font-size:13px;"></span>
+  </div>
+</form>
+
+<style>
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media(max-width:640px){ .form-grid { grid-template-columns:1fr; } }
+.notif-row {
+  display:flex; align-items:center; gap:10px; cursor:pointer;
+  padding:10px 12px; border-radius:8px; font-size:14px;
+  border:1px solid rgba(255,255,255,.06);
+  transition: background .15s;
+}
+.notif-row:hover { background:rgba(255,255,255,.03); }
+.notif-icon {
+  width:28px; height:28px; border-radius:6px;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.toggle-switch { position:relative; display:inline-block; width:44px; height:24px; }
+.toggle-switch input { opacity:0; width:0; height:0; }
+.toggle-slider {
+  position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0;
+  background:rgba(255,255,255,.1); border-radius:24px; transition:.2s;
+}
+.toggle-slider:before {
+  position:absolute; content:""; height:18px; width:18px; left:3px; bottom:3px;
+  background:#fff; border-radius:50%; transition:.2s;
+}
+.toggle-switch input:checked + .toggle-slider { background:var(--blue); }
+.toggle-switch input:checked + .toggle-slider:before { transform:translateX(20px); }
+</style>
+
+<script>
+document.getElementById('testEmailBtn').addEventListener('click', async function() {
+  const btn = this;
+  const result = document.getElementById('testResult');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sendingâ€¦';
+  result.textContent = '';
+  try {
+    const resp = await csrfFetch("{{ url_for('admin.test_email') }}", {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email: '{{ current_user.email }}'})
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      result.innerHTML = '<span style="color:#22c55e"><i class="bi bi-check-circle"></i> Test email sent to {{ current_user.email }}</span>';
+    } else {
+      result.innerHTML = '<span style="color:#f87171"><i class="bi bi-x-circle"></i> ' + (data.error || 'Failed') + '</span>';
+    }
+  } catch(e) {
+    result.innerHTML = '<span style="color:#f87171"><i class="bi bi-x-circle"></i> Request failed</span>';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-send"></i> Send Test Email';
+});
+
+document.getElementById('testAlertBtn').addEventListener('click', async function() {
+  const btn = this;
+  const result = document.getElementById('testResult');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Sendingâ€¦';
+  result.textContent = '';
+  try {
+    const resp = await csrfFetch("{{ url_for('admin.python_monitor_test_alert') }}", {
+      method: 'POST',
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      result.innerHTML = '<span style="color:#22c55e"><i class="bi bi-check-circle"></i> ' + data.message + '</span>';
+    } else {
+      result.innerHTML = '<span style="color:#f87171"><i class="bi bi-x-circle"></i> ' + (data.error || 'Failed') + '</span>';
+    }
+  } catch(e) {
+    result.innerHTML = '<span style="color:#f87171"><i class="bi bi-x-circle"></i> Request failed</span>';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-bell"></i> Send Test Alert';
+});
+</script>
+{% endblock %}

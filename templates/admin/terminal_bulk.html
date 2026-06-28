@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+{% block title %}Bulk Remote Run — Udeck Deploy Manager{% endblock %}
+{% block topbar_title %}Bulk Remote SSH Execution{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title"><i class="bi bi-terminal-fill"></i> Bulk Remote Run</h2>
+        <div class="page-subtitle">Execute scripts, shell commands, or process management actions on multiple servers simultaneously.</div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Configuration Column -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-gear-wide-connected"></i> Execution Settings</div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Target Options</label>
+                    <select class="form-select" id="targetSelect" onchange="toggleServerSelectors()">
+                        <option value="single">Single Selected Server</option>
+                        <option value="multiple">Multiple VPS Servers</option>
+                        <option value="all">All Registered Servers</option>
+                    </select>
+                </div>
+
+                <div class="mb-3" id="singleServerDiv">
+                    <label class="form-label">Select VPS Server</label>
+                    <select class="form-select" id="singleServerSelect">
+                        {% for server in servers %}
+                        <option value="{{ server.id }}">{{ server.name }} ({{ server.ip }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3 d-none" id="multiServerDiv">
+                    <label class="form-label">Select Target Servers</label>
+                    <div class="border rounded p-3 bg-dark" style="max-height:180px; overflow-y:auto;">
+                        {% for server in servers %}
+                        <div class="form-check mb-2">
+                            <input class="form-check-input server-checkbox" type="checkbox" value="{{ server.id }}" id="chk-{{ server.id }}">
+                            <label class="form-check-label text-light" for="chk-{{ server.id }}">
+                                {{ server.name }} ({{ server.ip }})
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Command to Run</label>
+                    <input type="text" class="form-control font-monospace text-info bg-dark border-secondary" id="cmdInput" placeholder="e.g. systemctl restart nginx" required>
+                    <div class="form-text text-muted">
+                        <i class="bi bi-info-circle"></i> Quick snippets: <code>git pull</code>, <code>npm install</code>, <code>pm2 restart all</code>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary w-100" id="executeBtn" onclick="runRemoteCommand()">
+                    <i class="bi bi-play-circle-fill"></i> Execute Command
+                </button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><i class="bi bi-clock-history"></i> Execution History</div>
+            <div class="card-body p-0" style="max-height: 280px; overflow-y: auto;">
+                <ul class="list-group list-group-flush bg-transparent" id="historyList">
+                    {% if not history %}
+                    <li class="list-group-item text-muted text-center py-4 bg-transparent border-secondary">No recent executions found.</li>
+                    {% else %}
+                    {% for item in history %}
+                    <li class="list-group-item bg-transparent border-secondary text-light">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="badge bg-secondary font-monospace text-truncate" style="max-width: 150px;">{{ item.command }}</span>
+                            <span class="badge {% if item.status == 'success' %}bg-success{% else %}bg-danger{% endif %}">{{ item.status }}</span>
+                        </div>
+                        <div class="small text-muted font-monospace d-flex justify-content-between">
+                            <span>Srv: {{ item.server.name if item.server else 'Unknown' }}</span>
+                            <span>{{ item.created_at.strftime('%H:%M:%S') }}</span>
+                        </div>
+                    </li>
+                    {% endfor %}
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Output Column -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-terminal-dash"></i> Execution Logs & Feedback</span>
+                <button class="btn btn-sm btn-outline-secondary" onclick="clearConsole()">
+                    <i class="bi bi-trash"></i> Clear Console
+                </button>
+            </div>
+            <div class="card-body bg-dark-deep p-0">
+                <div class="terminal-header px-3 py-2 border-bottom border-secondary d-flex align-items-center bg-black">
+                    <span class="dot dot-red me-1 bg-danger rounded-circle d-inline-block" style="width:10px; height:10px;"></span>
+                    <span class="dot dot-yellow me-1 bg-warning rounded-circle d-inline-block" style="width:10px; height:10px;"></span>
+                    <span class="dot dot-green me-2 bg-success rounded-circle d-inline-block" style="width:10px; height:10px;"></span>
+                    <span class="font-monospace text-muted small ms-1">udeck-bulk-executor@network-shell</span>
+                </div>
+                <pre class="terminal-output p-3 m-0 font-monospace text-info bg-black" id="terminalOutput" style="min-height:450px; max-height:600px; overflow-y:auto; white-space:pre-wrap; font-size: 0.9rem;">
+Welcome to Udeck Deploy Manager Bulk Command Execution Hub.
+Select target VPS nodes on the left, enter a command, and click Execute.
+Outputs from all selected servers will print here sequentially.
+</pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleServerSelectors() {
+    const target = document.getElementById('targetSelect').value;
+    const singleDiv = document.getElementById('singleServerDiv');
+    const multiDiv = document.getElementById('multiServerDiv');
+
+    if (target === 'single') {
+        singleDiv.classList.remove('d-none');
+        multiDiv.classList.add('d-none');
+    } else if (target === 'multiple') {
+        singleDiv.classList.add('d-none');
+        multiDiv.classList.remove('d-none');
+    } else {
+        singleDiv.classList.add('d-none');
+        multiDiv.classList.add('d-none');
+    }
+}
+
+function clearConsole() {
+    document.getElementById('terminalOutput').innerHTML = 'Console cleared.\n';
+}
+
+function runRemoteCommand() {
+    const target = document.getElementById('targetSelect').value;
+    const command = document.getElementById('cmdInput').value.trim();
+    const executeBtn = document.getElementById('executeBtn');
+    
+    if (!command) {
+        alert('Please enter a command to execute.');
+        return;
+    }
+    
+    let serverId = null;
+    let serverIds = [];
+    
+    if (target === 'single') {
+        serverId = document.getElementById('singleServerSelect').value;
+    } else if (target === 'multiple') {
+        const checkboxes = document.querySelectorAll('.server-checkbox:checked');
+        checkboxes.forEach(c => serverIds.push(c.value));
+        if (serverIds.length === 0) {
+            alert('Please select at least one server.');
+            return;
+        }
+    }
+    
+    executeBtn.disabled = true;
+    executeBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Executing...';
+    
+    const consoleOut = document.getElementById('terminalOutput');
+    consoleOut.innerHTML += `\n\n$ [executing] ${command} on target nodes...\n`;
+    consoleOut.scrollTop = consoleOut.scrollHeight;
+
+    csrfFetch('/servers/terminal/run', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            target: target,
+            server_id: serverId,
+            server_ids: serverIds,
+            command: command
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        executeBtn.disabled = false;
+        executeBtn.innerHTML = '<i class="bi bi-play-circle-fill"></i> Execute Command';
+        
+        if (data.ok && data.results) {
+            data.results.forEach(res => {
+                consoleOut.innerHTML += `\n--- Server: ${res.server_name} (${res.server_ip}) ---\n`;
+                if (res.success) {
+                    consoleOut.innerHTML += `<span class="text-success">${res.stdout || 'Command succeeded with no output.'}</span>\n`;
+                } else {
+                    consoleOut.innerHTML += `<span class="text-danger">${res.stderr || 'Command failed.'}</span>\n`;
+                }
+            });
+        } else {
+            consoleOut.innerHTML += `<span class="text-danger">Failed: ${data.message}</span>\n`;
+        }
+        consoleOut.scrollTop = consoleOut.scrollHeight;
+        
+        // Reload page or dynamically update history list if required
+        setTimeout(() => {
+            location.reload();
+        }, 1500);
+    })
+    .catch(err => {
+        executeBtn.disabled = false;
+        executeBtn.innerHTML = '<i class="bi bi-play-circle-fill"></i> Execute Command';
+        consoleOut.innerHTML += `<span class="text-danger">Error: Could not complete bulk script execution.</span>\n`;
+        consoleOut.scrollTop = consoleOut.scrollHeight;
+    });
+}
+</script>
+{% endblock %}

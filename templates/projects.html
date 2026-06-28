@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Projects â€” DevSpace{% endblock %}
+{% block topbar_title %}Projects{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <div class="page-title"><i class="bi bi-folder2-open"></i> Projects</div>
+        <div class="page-subtitle">{{ projects|length }} project{{ 's' if projects|length != 1 }}</div>
+    </div>
+    {% if current_user.can_create_project() %}
+        <a href="{{ url_for('main.add_project') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> New Project
+        </a>
+    {% else %}
+        <button class="btn btn-secondary" disabled title="Plan limit reached">
+            <i class="bi bi-slash-circle"></i> Limit reached
+        </button>
+    {% endif %}
+</div>
+
+{% if projects %}
+
+<!-- Project cards grid -->
+<div class="row g-3">
+    {% for project in projects %}
+    <div class="col-md-6 col-xl-4">
+        <div class="card" style="margin-bottom:0; cursor:pointer; transition:all .18s ease;"
+             onmouseenter="this.style.borderColor='var(--border-md)'; this.style.transform='translateY(-3px)'; this.style.boxShadow='var(--shadow)';"
+             onmouseleave="this.style.borderColor=''; this.style.transform=''; this.style.boxShadow='';"
+             onclick="window.location='{{ url_for('main.project_detail', project_id=project.id) }}'">
+
+            <!-- Card header -->
+            <div class="card-header" style="justify-content:space-between; padding:14px 16px;">
+                <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                    <div style="width:34px; height:34px; border-radius:var(--r-md); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:16px;
+                        {% if project.language == 'python' %}background:rgba(59,130,246,.12); color:#60a5fa;
+                        {% elif project.language == 'node' %}background:rgba(34,197,94,.12); color:#22c55e;
+                        {% elif project.language == 'php' %}background:rgba(167,139,250,.12); color:#a78bfa;
+                        {% else %}background:var(--bg-3); color:var(--tx-2);{% endif %}">
+                        <i class="bi bi-{% if project.language == 'python' %}filetype-py{% elif project.language == 'node' %}filetype-js{% elif project.language == 'php' %}filetype-php{% else %}code-slash{% endif %}"></i>
+                    </div>
+                    <div style="min-width:0;">
+                        <div style="font-size:14px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--tx);">{{ project.name }}</div>
+                        <code style="font-size:11px; color:var(--tx-3); background:none; border:none; padding:0;">{{ project.branch }}</code>
+                    </div>
+                </div>
+                <span class="badge bg-{{ 'success' if project.language == 'python' else 'primary' if project.language in ['node','php'] else 'warning' }}" style="flex-shrink:0;">
+                    {{ project.language.upper() }}
+                </span>
+            </div>
+
+            <!-- Card body -->
+            <div style="padding:14px 16px; border-bottom:1px solid var(--border);">
+                <div style="font-size:12px; color:var(--tx-3); margin-bottom:8px; display:flex; align-items:center; gap:6px;">
+                    <i class="bi bi-hdd"></i>
+                    <code style="font-size:11.5px; background:none; border:none; padding:0; color:var(--tx-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:240px; display:inline-block;">{{ project.deploy_path }}</code>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    {% if project.last_deployed %}
+                        <span class="status-dot status-success"></span>
+                        <span style="font-size:12px; color:var(--tx-2);">{{ project.last_deployed.strftime('%b %d, %Y %H:%M') }}</span>
+                    {% else %}
+                        <span class="status-dot status-pending"></span>
+                        <span style="font-size:12px; color:var(--tx-3);">Never deployed</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Card footer / actions -->
+            <div style="padding:10px 12px; display:flex; gap:6px;" onclick="event.stopPropagation()">
+                <form method="POST" action="{{ url_for('main.deploy_project', project_id=project.id) }}"
+                      style="flex:1; display:flex;"
+                      onsubmit="return confirm('Deploy {{ project.name }} now?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-deploy" style="flex:1; justify-content:center;">
+                        <i class="bi bi-rocket-takeoff"></i> Deploy
+                    </button>
+                </form>
+                <a href="{{ url_for('main.run_app', project_id=project.id) }}"
+                   class="btn btn-sm btn-dark" title="Run App" style="color:var(--blue);">
+                    <i class="bi bi-play-circle"></i>
+                </a>
+                <a href="{{ url_for('main.project_files', project_id=project.id) }}"
+                   class="btn btn-sm btn-dark" title="Browse files">
+                    <i class="bi bi-folder2-open"></i>
+                </a>
+                <a href="{{ url_for('main.deployment_logs', project_id=project.id) }}"
+                   class="btn btn-sm btn-dark" title="Logs">
+                    <i class="bi bi-terminal"></i>
+                </a>
+                <a href="{{ url_for('main.edit_project', project_id=project.id) }}"
+                   class="btn btn-sm btn-secondary" title="Edit">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                <form method="POST" action="{{ url_for('main.delete_project', project_id=project.id) }}"
+                      style="display:inline;"
+                      onsubmit="return confirm('Delete {{ project.name }}? This cannot be undone.')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-danger" title="Delete">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="card">
+    <div class="empty-state">
+        <div class="empty-icon"><i class="bi bi-folder-x"></i></div>
+        <h4>No projects yet</h4>
+        <p>Create your first project and start deploying with a simple <code>git push</code>.</p>
+        {% if current_user.can_create_project() %}
+            <a href="{{ url_for('main.add_project') }}" class="btn btn-primary">
+                <i class="bi bi-plus-lg"></i> Create Project
+            </a>
+        {% else %}
+            <div class="alert alert-warning d-inline-flex" style="margin:0;">
+                <i class="bi bi-exclamation-triangle"></i>
+                Upgrade your plan to create more projects.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

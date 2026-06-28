@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}Logs Center — Udeck Deploy Manager{% endblock %}
+{% block topbar_title %}Enterprise Audit & Logs Center{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h2 class="page-title"><i class="bi bi-file-earmark-text"></i> Unified Logs Center</h2>
+        <div class="page-subtitle">Search, filter, and inspect build outputs, remote command actions, and administrative security audit logs</div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header"><i class="bi bi-funnel"></i> Search & Filters</div>
+    <div class="card-body">
+        <form action="{{ url_for('logs_bp.index') }}" method="GET" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Log Type Category</label>
+                <select class="form-select" name="type">
+                    <option value="all" {% if log_type == 'all' %}selected{% endif %}>All System Logs</option>
+                    <option value="deploy" {% if log_type == 'deploy' %}selected{% endif %}>Deployment Pipeline Output Logs</option>
+                    <option value="command" {% if log_type == 'command' %}selected{% endif %}>Remote Terminal Command Logs</option>
+                    <option value="audit" {% if log_type == 'audit' %}selected{% endif %}>Security Audit Trail Logs</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Search Query</label>
+                <input type="text" class="form-control" name="search" value="{{ search }}" placeholder="Filter contents by keyword, project name, command, IP...">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <button type="submit" class="btn btn-primary w-100"><i class="bi bi-search"></i> Search</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><i class="bi bi-list-columns"></i> Log Entry Stream</div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th style="width: 20%;">Timestamp</th>
+                        <th style="width: 20%;">Type</th>
+                        <th style="width: 60%;">Description / Log Fragment</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Deployments -->
+                    {% for d in deployments %}
+                    <tr>
+                        <td class="font-monospace small text-muted">{{ d.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td><span class="badge bg-primary">DEPLOYMENT</span></td>
+                        <td>
+                            <div class="fw-bold text-light">Project: {{ d.project.name if d.project else 'Deleted' }} (Status: <span class="text-info">{{ d.status }}</span>)</div>
+                            <div class="small text-muted text-truncate font-monospace" style="max-width: 680px;">{{ d.logs[:160] or 'No log text' }}...</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    <!-- Commands -->
+                    {% for c in commands %}
+                    <tr>
+                        <td class="font-monospace small text-muted">{{ c.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td><span class="badge bg-secondary">SSH COMMAND</span></td>
+                        <td>
+                            <div class="fw-bold text-light">Server: {{ c.server.name if c.server else 'Local' }}</div>
+                            <code class="d-block font-monospace bg-dark text-success p-1 rounded small mb-1">{{ c.command }}</code>
+                            <div class="small text-muted text-truncate font-monospace" style="max-width: 680px;">{{ c.output[:160] or 'No output text' }}...</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    <!-- Audit Activities -->
+                    {% for a in activities %}
+                    <tr>
+                        <td class="font-monospace small text-muted">{{ a.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td><span class="badge bg-dark">AUDIT TRAIL</span></td>
+                        <td>
+                            <div class="fw-bold text-light">{{ a.action }}</div>
+                            <div class="small text-muted">{{ a.details }} (IP: {{ a.ip_address }})</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    {% if not deployments and not commands and not activities %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted py-5">
+                            <i class="bi bi-journal-x d-block fs-3 mb-2"></i>
+                            No matching log entries found.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
