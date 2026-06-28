@@ -16,6 +16,19 @@ Deploy **Python**, **Node.js**, and **PHP** projects to your own VPS with zero C
 
 ---
 
+## 📑 Table of Contents
+
+- [✨ Features](#-features)
+- [📸 Screenshots](#-screenshots)
+- [❓ Why DevSpace?](#-why-devspace)
+- [⚡ Quick Start](#-quick-start)
+- [🔧 Environment Variables](#-environment-variables)
+- [📁 Project Structure](#-project-structure)
+- [🚀 Production Deployment](#-production-deployment)
+- [📄 License](#-license)
+
+---
+
 ## ✨ Features
 
 ### 📦 Deployment
@@ -86,18 +99,6 @@ Deploy **Python**, **Node.js**, and **PHP** projects to your own VPS with zero C
 - **Project Selector** — Choose any deployed project to scan
 - **Scan History** — Full audit trail of all past scans with results
 
----
-
-## Screenshots
-
-![Dashboard](static/img/screenshots/dashboard.jpg)
-![Server List](static/img/screenshots/server_list.jpg)
-![Server Terminal](static/img/screenshots/server_terminal.jpg)
-![Python Monitoring](static/img/screenshots/python_monitoring.jpg)
-![Add Server](static/img/screenshots/server_adding.jpg)
-
----
-
 ### 🧰 Additional Tools
 - **Nginx Reverse Proxy** — One-click SSL certificate (Let's Encrypt) + domain setup
 - **File Manager** — Browse, upload, edit, delete files on deployed projects
@@ -137,17 +138,26 @@ Open **http://127.0.0.1:5000** and register your first account.
 
 ---
 
-## Screenshots
+## 📸 Screenshots
 
-| Page | Description |
-|------|-------------|
-| **Dashboard** | Project overview, server status, recent deployments |
-| **Python Monitor** | Live list of all running Python apps across servers |
-| **AI Monitor** | 24/7 metrics with anomaly detection and charts |
-| **Security Dashboard** | 2FA status, active sessions, security events |
-| **SSH Terminal** | Full browser-based interactive terminal |
-| **Deploy Logs** | Real-time deployment output |
-| **Email Config** | SMTP settings and alert recipients |
+![Dashboard](static/img/screenshots/dashboard.jpg)
+![Server List](static/img/screenshots/server_list.jpg)
+![Server Terminal](static/img/screenshots/server_terminal.jpg)
+![Python Monitoring](static/img/screenshots/python_monitoring.jpg)
+![Add Server](static/img/screenshots/server_adding.jpg)
+
+---
+
+## ❓ Why DevSpace?
+
+| Challenge | DevSpace Solution |
+|-----------|------------------|
+| **CI/CD is overkill for small teams** | Git push → auto-deploy. No YAML pipelines, no agents. |
+| **VPS monitoring is scattered** | Central dashboard for all servers, apps, and metrics. |
+| **Anomalies go unnoticed** | 24/7 AI daemon detects CPU/memory/disk spikes automatically. |
+| **SSH hopping is tedious** | Built-in browser terminal for every server. |
+| **Security is an afterthought** | 2FA, session management, IP binding, audit logs out of the box. |
+| **Open source lock-in** | Fully self-hosted on your own VPS. No SaaS, no limits. |
 
 ---
 
