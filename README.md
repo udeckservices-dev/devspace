@@ -26,6 +26,10 @@ Deploy **Python**, **Node.js**, and **PHP** projects to your own VPS with zero C
 - [🔧 Environment Variables](#-environment-variables)
 - [📁 Project Structure](#-project-structure)
 - [🚀 Production Deployment](#-production-deployment)
+- [🗺️ Roadmap](#️-roadmap)
+- [🤝 Contributing](#-contributing)
+- [⭐ Star History](#-star-history)
+- [📬 Support](#-support)
 - [📄 License](#-license)
 
 ---
@@ -244,6 +248,42 @@ sudo bash install.sh
 
 ---
 
-## License
+## 🗺️ Roadmap
+
+- ✅ **Git Deploy** — Push-to-deploy via bare repos
+- ✅ **AI Monitor** — 24/7 anomaly detection daemon
+- ✅ **Browser SSH** — Full interactive terminal in the browser
+- 🔄 **Docker Compose** — One-click Docker deployment
+- 🔄 **Kubernetes** — K3s integration for cluster management
+- 🔄 **Backup & Restore** — Automated project and DB snapshots
+- 🔄 **Multi-User Teams** — Role-based team collaboration
+
+---
+
+## 🤝 Contributing
+
+1. **Fork** the repo
+2. **Create** a feature branch (`git checkout -b feature/amazing`)
+3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
+4. **Push** to the branch (`git push origin feature/amazing`)
+5. **Open** a Pull Request
+
+---
+
+## ⭐ Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=udeckservices-dev/devspace&type=Date)](https://star-history.com/#udeckservices-dev/devspace&Date)
+
+---
+
+## 📬 Support
+
+- [GitHub Issues](https://github.com/udeckservices-dev/devspace/issues) — Bug reports & feature requests
+- [Discussions](https://github.com/udeckservices-dev/devspace/discussions) — Q&A, ideas, and community help
+- Email: **uditroy@udeckservices.com** — Direct support inquiries
+
+---
+
+## 📄 License
 
 MIT — free for personal and commercial use.
