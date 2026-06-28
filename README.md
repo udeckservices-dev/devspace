@@ -21,6 +21,7 @@ Deploy **Python**, **Node.js**, and **PHP** projects to your own VPS with zero C
 - [✨ Features](#-features)
 - [📸 Screenshots](#-screenshots)
 - [❓ Why DevSpace?](#-why-devspace)
+- [⚖️ Feature Comparison](#️-feature-comparison)
 - [⚡ Quick Start](#-quick-start)
 - [🔧 Environment Variables](#-environment-variables)
 - [📁 Project Structure](#-project-structure)
@@ -158,6 +159,22 @@ Open **http://127.0.0.1:5000** and register your first account.
 | **SSH hopping is tedious** | Built-in browser terminal for every server. |
 | **Security is an afterthought** | 2FA, session management, IP binding, audit logs out of the box. |
 | **Open source lock-in** | Fully self-hosted on your own VPS. No SaaS, no limits. |
+
+---
+
+## ⚖️ Feature Comparison
+
+| Feature | DevSpace | Coolify | Dokploy |
+|---------|----------|---------|---------|
+| **Git Deploy** | ✅ | ✅ | ✅ |
+| **AI Monitoring** | ✅ | ❌ | ❌ |
+| **Browser SSH** | ✅ | ❌ | ❌ |
+| **Python Monitor** | ✅ | ❌ | ❌ |
+| **Code Scanner** | ✅ | ❌ | ❌ |
+| **2FA / TOTP** | ✅ | ❌ | ❌ |
+| **Session Management** | ✅ | ❌ | ❌ |
+| **Self-Hosted** | ✅ | ✅ | ✅ |
+| **Open Source** | ✅ | ✅ | ✅ |
 
 ---
 
